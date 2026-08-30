@@ -8,153 +8,264 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: #f5f5f5;
   min-height: 100vh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 20px;
+  padding-bottom: 30px;
 }
-.card {
-  background: #fff;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-  max-width: 420px;
-  width: 100%;
-  overflow: hidden;
-}
-.card-header {
-  background: linear-gradient(135deg, #e74c3c, #c0392b);
+.header {
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
   color: #fff;
-  padding: 24px;
+  padding: 24px 20px;
   text-align: center;
 }
-.card-header .icon { font-size: 48px; margin-bottom: 8px; }
-.card-header h1 { font-size: 22px; font-weight: 600; }
-.card-header .code { font-size: 14px; opacity: 0.9; margin-top: 4px; }
-.card-body { padding: 20px 24px; }
-.info-row {
-  display: flex;
-  padding: 12px 0;
-  border-bottom: 1px solid #f0f0f0;
-}
-.info-row:last-child { border-bottom: none; }
-.info-label {
-  width: 80px;
-  color: #888;
-  font-size: 14px;
-  flex-shrink: 0;
-}
-.info-value {
-  flex: 1;
-  color: #333;
-  font-size: 15px;
-  font-weight: 500;
-  word-break: break-all;
-}
-.status-badge {
+.header .icon { font-size: 40px; margin-bottom: 8px; }
+.header h1 { font-size: 22px; font-weight: 600; }
+.header .code { font-size: 13px; opacity: 0.9; margin-top: 6px; }
+.status-tag {
   display: inline-block;
-  padding: 3px 12px;
+  padding: 3px 14px;
   border-radius: 12px;
   font-size: 13px;
   font-weight: 600;
+  margin-top: 10px;
 }
-.status-normal { background: #d4edda; color: #155724; }
-.status-fault { background: #f8d7da; color: #721c24; }
-.status-wait { background: #fff3cd; color: #856404; }
-.status-unknown { background: #e2e3e5; color: #383d41; }
-.card-footer {
-  padding: 16px 24px;
-  background: #f8f9fa;
-  text-align: center;
+.status-normal { background: rgba(255,255,255,0.25); }
+.status-fault { background: #721c24; }
+.status-wait { background: #856404; }
+.container { max-width: 480px; margin: 0 auto; padding: 16px; }
+.section {
+  background: #fff;
+  border-radius: 10px;
+  margin-bottom: 16px;
+  overflow: hidden;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+}
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #c0392b;
+  padding: 14px 16px;
+  border-bottom: 2px solid #c0392b;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.info-table { width: 100%; border-collapse: collapse; }
+.info-table td {
+  padding: 12px 16px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 14px;
+}
+.info-table td:first-child {
+  width: 90px;
+  color: #888;
+  background: #fafafa;
+}
+.info-table td:last-child {
+  color: #333;
+  font-weight: 500;
+  word-break: break-all;
+}
+.info-table tr:last-child td { border-bottom: none; }
+.form-area { padding: 16px; }
+.form-group { margin-bottom: 14px; }
+.form-group label {
+  display: block;
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 6px;
+}
+.form-group input, .form-group select, .form-group textarea {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  font-family: inherit;
+}
+.form-group textarea { resize: vertical; min-height: 60px; }
+.btn-submit {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.records { padding: 0 16px 16px; }
+.record-item {
+  padding: 12px 0;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+}
+.record-item:last-child { border-bottom: none; }
+.record-header {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+.record-person { font-weight: 600; color: #333; }
+.record-date { color: #999; }
+.record-result { color: #c0392b; font-weight: 500; }
+.record-remark { color: #666; margin-top: 4px; }
+.empty { text-align: center; padding: 30px; color: #999; font-size: 14px; }
+.tips {
+  background: #fff8e1;
+  border-left: 3px solid #ffc107;
+  padding: 12px 16px;
   font-size: 12px;
-  color: #999;
+  color: #856404;
+  margin: 0 16px 16px;
+  border-radius: 0 6px 6px 0;
 }
-.empty {
-  text-align: center;
-  padding: 60px 20px;
-  color: #999;
-}
-.empty h2 { color: #666; margin-bottom: 12px; }
 @media print {
-  body { background: #fff; padding: 0; }
-  .card { box-shadow: none; border: 1px solid #ddd; }
+  body { background: #fff; }
+  .section { box-shadow: none; border: 1px solid #ddd; }
 }
 </style>
 </head>
 <body>
-<div class="card" id="card">
-  <div class="empty" id="empty">
-    <h2>暂无设备信息</h2>
-    <p>请通过系统生成的二维码访问</p>
-  </div>
+<div class="header" id="header">
+  <div class="icon">🔥</div>
+  <h1 id="dev-title">消防设备</h1>
+  <div class="code" id="dev-code"></div>
+  <span class="status-tag" id="dev-status-tag">未知</span>
 </div>
+
+<div class="container">
+  <div class="section">
+    <div class="section-title">📋 设备信息</div>
+    <table class="info-table" id="info-table">
+      <tr><td colspan="2" style="text-align:center;color:#999;padding:30px">暂无设备信息</td></tr>
+    </table>
+  </div>
+
+  <div class="section">
+    <div class="section-title">✅ 巡检登记</div>
+    <div class="form-area">
+      <div class="form-group">
+        <label>检查人 *</label>
+        <input type="text" id="check-person" placeholder="请输入检查人姓名">
+      </div>
+      <div class="form-group">
+        <label>检查结果 *</label>
+        <select id="check-result">
+          <option value="正常">正常</option>
+          <option value="异常">异常</option>
+          <option value="需维修">需维修</option>
+          <option value="已维修">已维修</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>备注</label>
+        <textarea id="check-remark" placeholder="检查情况描述（选填）"></textarea>
+      </div>
+      <button class="btn-submit" onclick="submitCheck()">提交巡检记录</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-title">📝 历史记录</div>
+    <div class="records" id="records-list">
+      <div class="empty">暂无巡检记录</div>
+    </div>
+  </div>
+
+  <div class="tips">💡 巡检记录保存在本设备浏览器中，更换手机或清除缓存后将无法查看。</div>
+</div>
+
 <script>
 function getQueryParam(name) {
-  const url = new URL(window.location.href);
-  return url.searchParams.get(name);
+  return new URL(window.location.href).searchParams.get(name);
 }
 function decodeData(str) {
-  try {
-    const json = decodeURIComponent(escape(atob(str)));
-    return JSON.parse(json);
-  } catch(e) {
-    return null;
-  }
+  try { return JSON.parse(decodeURIComponent(escape(atob(str)))); } catch(e) { return null; }
 }
-function getStatusClass(status) {
-  if (status === "正常") return "status-normal";
-  if (status === "故障") return "status-fault";
-  if (status === "待维保") return "status-wait";
-  return "status-unknown";
+function getStatusClass(s) {
+  if (s === "正常") return "status-normal";
+  if (s === "故障") return "status-fault";
+  if (s === "待维保") return "status-wait";
+  return "";
+}
+function getStorageKey() {
+  const data = getQueryParam("data");
+  return "fire_check_" + (data ? data.substring(0, 20) : "unknown");
+}
+function loadRecords() {
+  try {
+    const key = getStorageKey();
+    return JSON.parse(localStorage.getItem(key) || "[]");
+  } catch(e) { return []; }
+}
+function saveRecords(list) {
+  try { localStorage.setItem(getStorageKey(), JSON.stringify(list)); } catch(e) {}
+}
+function renderRecords() {
+  const list = loadRecords();
+  const el = document.getElementById("records-list");
+  if (!list.length) { el.innerHTML = '<div class="empty">暂无巡检记录</div>'; return; }
+  let html = "";
+  list.slice().reverse().forEach(r => {
+    html += '<div class="record-item">';
+    html += '<div class="record-header"><span class="record-person">' + r.person + '</span><span class="record-date">' + r.date + '</span></div>';
+    html += '<div class="record-result">结果：' + r.result + '</div>';
+    if (r.remark) html += '<div class="record-remark">' + r.remark + '</div>';
+    html += '</div>';
+  });
+  el.innerHTML = html;
+}
+function submitCheck() {
+  const person = document.getElementById("check-person").value.trim();
+  const result = document.getElementById("check-result").value;
+  const remark = document.getElementById("check-remark").value.trim();
+  if (!person) { alert("请输入检查人姓名"); return; }
+  const now = new Date();
+  const date = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0") + "-" + String(now.getDate()).padStart(2,"0") + " " + String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0");
+  const list = loadRecords();
+  list.push({ person, result, remark, date });
+  saveRecords(list);
+  document.getElementById("check-person").value = "";
+  document.getElementById("check-remark").value = "";
+  renderRecords();
+  alert("巡检记录已提交！");
 }
 function render(d) {
-  const card = document.getElementById("card");
   const type = d.type || "未知设备";
   const code = d.code || "";
   const status = d.status || "未知";
-  let html = '<div class="card-header">';
-  html += '<div class="icon">🔥</div>';
-  html += '<h1>' + type + '</h1>';
-  if (code) html += '<div class="code">编号：' + code + '</div>';
-  html += '</div><div class="card-body">';
-  if (d.pos) {
-    html += '<div class="info-row"><div class="info-label">位置</div><div class="info-value">' + d.pos + '</div></div>';
-  }
-  html += '<div class="info-row"><div class="info-label">状态</div><div class="info-value"><span class="status-badge ' + getStatusClass(status) + '">' + status + '</span></div></div>';
-  if (d.install) {
-    html += '<div class="info-row"><div class="info-label">安装日期</div><div class="info-value">' + d.install + '</div></div>';
-  }
-  if (d.life) {
-    html += '<div class="info-row"><div class="info-label">使用寿命</div><div class="info-value">' + d.life + ' 年</div></div>';
-  }
-  if (d.next) {
-    html += '<div class="info-row"><div class="info-label">下次维保</div><div class="info-value">' + d.next + '</div></div>';
-  }
-  if (d.manufacturer) {
-    html += '<div class="info-row"><div class="info-label">生产厂家</div><div class="info-value">' + d.manufacturer + '</div></div>';
-  }
-  if (d.model) {
-    html += '<div class="info-row"><div class="info-label">规格型号</div><div class="info-value">' + d.model + '</div></div>';
-  }
-  if (d.person) {
-    html += '<div class="info-row"><div class="info-label">责任人</div><div class="info-value">' + d.person + '</div></div>';
-  }
-  if (d.phone) {
-    html += '<div class="info-row"><div class="info-label">联系电话</div><div class="info-value">' + d.phone + '</div></div>';
-  }
-  if (d.remark) {
-    html += '<div class="info-row"><div class="info-label">备注</div><div class="info-value">' + d.remark + '</div></div>';
-  }
-  html += '</div><div class="card-footer">消防设施可视化管理系统</div>';
-  card.innerHTML = html;
+  document.getElementById("dev-title").innerText = type;
+  document.getElementById("dev-code").innerText = code ? "编号：" + code : "";
+  const tag = document.getElementById("dev-status-tag");
+  tag.innerText = status;
+  tag.className = "status-tag " + getStatusClass(status);
   document.title = type + (code ? " " + code : "") + " - 消防设备信息";
+  const rows = [];
+  if (d.pos) rows.push(["位置", d.pos]);
+  rows.push(["状态", status]);
+  if (d.install) rows.push(["安装日期", d.install]);
+  if (d.life) rows.push(["使用寿命", d.life + " 年"]);
+  if (d.next) rows.push(["下次维保", d.next]);
+  if (d.manufacturer) rows.push(["生产厂家", d.manufacturer]);
+  if (d.model) rows.push(["规格型号", d.model]);
+  if (d.person) rows.push(["责任人", d.person]);
+  if (d.phone) rows.push(["联系电话", d.phone]);
+  if (d.remark) rows.push(["备注", d.remark]);
+  const table = document.getElementById("info-table");
+  if (!rows.length) {
+    table.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;padding:30px">暂无设备信息</td></tr>';
+  } else {
+    table.innerHTML = rows.map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join("");
+  }
 }
 const data = getQueryParam("data");
 if (data) {
   const d = decodeData(data);
   if (d) render(d);
 }
+renderRecords();
 </script>
 </body>
 </html>
