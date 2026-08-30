@@ -125,8 +125,23 @@ function render(d) {
   if (d.install) {
     html += '<div class="info-row"><div class="info-label">安装日期</div><div class="info-value">' + d.install + '</div></div>';
   }
+  if (d.life) {
+    html += '<div class="info-row"><div class="info-label">使用寿命</div><div class="info-value">' + d.life + ' 年</div></div>';
+  }
   if (d.next) {
     html += '<div class="info-row"><div class="info-label">下次维保</div><div class="info-value">' + d.next + '</div></div>';
+  }
+  if (d.manufacturer) {
+    html += '<div class="info-row"><div class="info-label">生产厂家</div><div class="info-value">' + d.manufacturer + '</div></div>';
+  }
+  if (d.model) {
+    html += '<div class="info-row"><div class="info-label">规格型号</div><div class="info-value">' + d.model + '</div></div>';
+  }
+  if (d.person) {
+    html += '<div class="info-row"><div class="info-label">责任人</div><div class="info-value">' + d.person + '</div></div>';
+  }
+  if (d.phone) {
+    html += '<div class="info-row"><div class="info-label">联系电话</div><div class="info-value">' + d.phone + '</div></div>';
   }
   if (d.remark) {
     html += '<div class="info-row"><div class="info-label">备注</div><div class="info-value">' + d.remark + '</div></div>';
