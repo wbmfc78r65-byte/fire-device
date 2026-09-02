@@ -174,7 +174,18 @@ body {
     </div>
   </div>
 
-  <div class="tips">💡 巡检记录保存在本设备浏览器中，更换手机或清除缓存后将无法查看。</div>
+  <div class="section">
+    <div class="section-title">📖 使用说明</div>
+    <div class="form-area" id="usage-guide" style="font-size:14px;line-height:1.8;color:#555">
+      <p>请根据设备类型查阅相关使用说明。</p>
+    </div>
+  </div>
+
+  <div style="text-align:center;margin-bottom:16px">
+    <button class="btn-submit" style="width:auto;padding:10px 24px;display:inline-block" onclick="exportRecords()">📥 导出巡检记录(CSV)</button>
+  </div>
+
+  <div class="tips">💡 巡检记录保存在本设备浏览器中，更换手机或清除缓存后将无法查看。导出CSV可备份记录。</div>
 </div>
 
 <script>
@@ -232,10 +243,39 @@ function submitCheck() {
   renderRecords();
   alert("巡检记录已提交！");
 }
+function exportRecords() {
+  const list = loadRecords();
+  if (!list.length) { alert("暂无巡检记录可导出"); return; }
+  let csv = "\uFEFF检查人,检查结果,检查时间,备注\n";
+  list.forEach(r => {
+    csv += '"' + r.person + '","' + r.result + '","' + r.date + '","' + (r.remark || "") + '"\n';
+  });
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "巡检记录_" + new Date().toISOString().split("T")[0] + ".csv";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+function renderUsageGuide(type) {
+  const el = document.getElementById("usage-guide");
+  const guides = {
+    "室内消火栓": "1. 打开消火栓门<br>2. 取出水带，一端接消火栓口，一端接水枪<br>3. 逆时针打开阀门<br>4. 握紧水枪，对准火焰根部喷射",
+    "灭火器": "1. 提起灭火器<br>2. 拔掉保险销<br>3. 握住喷管，对准火焰根部<br>4. 压下压把，左右扫射",
+    "烟感探测器": "定期检查指示灯是否正常闪烁<br>每年进行一次功能测试<br>发现故障及时更换",
+    "喷淋头": "定期检查喷淋头是否有损坏、堵塞<br>每年进行一次末端试水<br>发现漏水及时维修",
+    "防火门": "保持防火门常闭状态<br>检查闭门器是否正常工作<br>禁止堆放物品阻挡防火门"
+  };
+  let content = guides[type] || "请查阅设备说明书或联系物业管理人员了解使用方法。<br><br>消防设备应定期检查，确保完好有效。";
+  el.innerHTML = "<p>" + content + "</p>";
+}
 function render(d) {
   const type = d.type || "未知设备";
   const code = d.code || "";
   const status = d.status || "未知";
+  const labels = d.labels || {};
+  const L = (key, def) => labels[key] || def;
   document.getElementById("dev-title").innerText = type;
   document.getElementById("dev-code").innerText = code ? "编号：" + code : "";
   const tag = document.getElementById("dev-status-tag");
@@ -243,22 +283,28 @@ function render(d) {
   tag.className = "status-tag " + getStatusClass(status);
   document.title = type + (code ? " " + code : "") + " - 消防设备信息";
   const rows = [];
-  if (d.pos) rows.push(["位置", d.pos]);
+  if (d.pos) rows.push([L("pos", "位置"), d.pos]);
   rows.push(["状态", status]);
-  if (d.install) rows.push(["安装日期", d.install]);
-  if (d.life) rows.push(["使用寿命", d.life + " 年"]);
-  if (d.next) rows.push(["下次维保", d.next]);
-  if (d.manufacturer) rows.push(["生产厂家", d.manufacturer]);
-  if (d.model) rows.push(["规格型号", d.model]);
-  if (d.person) rows.push(["责任人", d.person]);
-  if (d.phone) rows.push(["联系电话", d.phone]);
-  if (d.remark) rows.push(["备注", d.remark]);
+  if (d.install) rows.push([L("install", "安装日期"), d.install]);
+  if (d.life) rows.push([L("life", "使用寿命"), d.life + " 年"]);
+  if (d.next) rows.push([L("next", "下次维保"), d.next]);
+  if (d.manufacturer) rows.push([L("manufacturer", "生产厂家"), d.manufacturer]);
+  if (d.model) rows.push([L("model", "规格型号"), d.model]);
+  if (d.person) rows.push([L("person", "责任人"), d.person]);
+  if (d.phone) rows.push([L("phone", "联系电话"), d.phone]);
+  if (d.remark) rows.push([L("remark", "备注"), d.remark]);
+  if (d.customData) {
+    Object.keys(d.customData).forEach(k => {
+      rows.push([k, d.customData[k]]);
+    });
+  }
   const table = document.getElementById("info-table");
   if (!rows.length) {
     table.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;padding:30px">暂无设备信息</td></tr>';
   } else {
     table.innerHTML = rows.map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join("");
   }
+  renderUsageGuide(type);
 }
 const data = getQueryParam("data");
 if (data) {
