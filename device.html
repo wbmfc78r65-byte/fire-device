@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>消防设备信息</title>
+<title>消防设备巡检</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -84,17 +84,40 @@ body {
   font-family: inherit;
 }
 .form-group textarea { resize: vertical; min-height: 60px; }
+.result-options {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+.result-option {
+  flex: 1;
+  padding: 12px 8px;
+  border: 2px solid #ddd;
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+.result-option.active {
+  border-color: #c0392b;
+  background: #fef5f5;
+  color: #c0392b;
+}
+.result-option .emoji { font-size: 20px; display: block; margin-bottom: 4px; }
 .btn-submit {
   width: 100%;
-  padding: 12px;
+  padding: 14px;
   background: linear-gradient(135deg, #c0392b, #e74c3c);
   color: #fff;
   border: none;
-  border-radius: 6px;
-  font-size: 15px;
+  border-radius: 8px;
+  font-size: 16px;
   font-weight: 600;
   cursor: pointer;
 }
+.btn-submit:active { opacity: 0.8; }
 .records { padding: 0 16px 16px; }
 .record-item {
   padding: 12px 0;
@@ -121,13 +144,164 @@ body {
   margin: 0 16px 16px;
   border-radius: 0 6px 6px 0;
 }
-@media print {
-  body { background: #fff; }
-  .section { box-shadow: none; border: 1px solid #ddd; }
+.success-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+.success-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 40px 30px;
+  text-align: center;
+  max-width: 300px;
+}
+.success-icon {
+  width: 60px;
+  height: 60px;
+  background: #10b981;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  font-size: 30px;
+  color: #fff;
+}
+.success-box h3 { color: #333; margin-bottom: 8px; }
+.success-box p { color: #666; font-size: 14px; margin-bottom: 20px; }
+.success-box button {
+  padding: 10px 30px;
+  background: #c0392b;
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.photo-upload {
+  border: 2px dashed #ddd;
+  border-radius: 8px;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  color: #999;
+  font-size: 13px;
+}
+.photo-upload:hover { border-color: #c0392b; color: #c0392b; }
+.photo-preview { max-width: 100%; border-radius: 8px; margin-top: 8px; }
+/* 登录界面 */
+.login-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.login-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 30px 24px;
+  width: 90%;
+  max-width: 320px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+.login-box h2 {
+  text-align: center;
+  color: #c0392b;
+  margin-bottom: 6px;
+  font-size: 20px;
+}
+.login-box .subtitle {
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+.login-box .form-group { margin-bottom: 14px; }
+.login-box label {
+  display: block;
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 6px;
+}
+.login-box input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 15px;
+  box-sizing: border-box;
+}
+.login-box input:focus {
+  outline: none;
+  border-color: #c0392b;
+}
+.login-box .btn-login {
+  width: 100%;
+  padding: 13px;
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 6px;
+}
+.login-box .btn-login:active { opacity: 0.8; }
+.login-error {
+  color: #e74c3c;
+  font-size: 13px;
+  text-align: center;
+  margin-top: 10px;
+  min-height: 18px;
+}
+.user-info-bar {
+  background: #f0fdf4;
+  border-left: 3px solid #10b981;
+  padding: 10px 16px;
+  font-size: 13px;
+  color: #065f46;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.user-info-bar .logout {
+  color: #10b981;
+  cursor: pointer;
+  font-size: 12px;
+  text-decoration: underline;
 }
 </style>
 </head>
 <body>
+<!-- 登录界面 -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-box">
+    <h2>🔥 消防巡检系统</h2>
+    <div class="subtitle">请登录后进行巡检</div>
+    <div class="form-group">
+      <label>工号</label>
+      <input type="text" id="login-id" placeholder="请输入工号" maxlength="20">
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input type="password" id="login-password" placeholder="请输入密码" maxlength="20">
+    </div>
+    <button class="btn-login" onclick="doLogin()">登 录</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- 主内容（登录后显示） -->
+<div id="main-content" style="display:none">
 <div class="header" id="header">
   <div class="icon">🔥</div>
   <h1 id="dev-title">消防设备</h1>
@@ -136,6 +310,7 @@ body {
 </div>
 
 <div class="container">
+  <!-- 设备信息 -->
   <div class="section">
     <div class="section-title">📋 设备信息</div>
     <table class="info-table" id="info-table">
@@ -143,52 +318,220 @@ body {
     </table>
   </div>
 
+  <!-- 巡检打卡 -->
   <div class="section">
-    <div class="section-title">✅ 巡检登记</div>
+    <div class="section-title">✅ 巡检打卡</div>
     <div class="form-area">
       <div class="form-group">
-        <label>检查人 *</label>
-        <input type="text" id="check-person" placeholder="请输入检查人姓名">
+        <label>巡检人 *</label>
+        <input type="text" id="check-person" placeholder="请输入巡检人姓名">
       </div>
       <div class="form-group">
-        <label>检查结果 *</label>
-        <select id="check-result">
-          <option value="正常">正常</option>
-          <option value="异常">异常</option>
-          <option value="需维修">需维修</option>
-          <option value="已维修">已维修</option>
-        </select>
+        <label>巡检结果 *</label>
+        <div class="result-options">
+          <div class="result-option active" data-result="正常" onclick="selectResult(this)">
+            <span class="emoji">✅</span>正常
+          </div>
+          <div class="result-option" data-result="故障" onclick="selectResult(this)">
+            <span class="emoji">⚠️</span>故障
+          </div>
+          <div class="result-option" data-result="需维保" onclick="selectResult(this)">
+            <span class="emoji">🔧</span>需维保
+          </div>
+        </div>
       </div>
       <div class="form-group">
         <label>备注</label>
         <textarea id="check-remark" placeholder="检查情况描述（选填）"></textarea>
       </div>
+      <div class="form-group">
+        <label>现场照片（选填）</label>
+        <div class="photo-upload" onclick="document.getElementById('check-photo').click()">
+          📷 点击上传现场照片
+        </div>
+        <input type="file" id="check-photo" accept="image/*" capture="environment" style="display:none" onchange="previewPhoto(this)">
+        <img id="photo-preview" class="photo-preview" style="display:none">
+      </div>
       <button class="btn-submit" onclick="submitCheck()">提交巡检记录</button>
     </div>
   </div>
 
+  <!-- 历史记录 -->
   <div class="section">
-    <div class="section-title">📝 历史记录</div>
+    <div class="section-title">📝 巡检历史</div>
     <div class="records" id="records-list">
       <div class="empty">暂无巡检记录</div>
     </div>
   </div>
 
-  <div class="section">
-    <div class="section-title">📖 使用说明</div>
-    <div class="form-area" id="usage-guide" style="font-size:14px;line-height:1.8;color:#555">
-      <p>请根据设备类型查阅相关使用说明。</p>
-    </div>
-  </div>
+  <div class="tips">💡 巡检记录自动同步到主系统。在主系统「维保巡检」中可查看所有巡检记录。</div>
+</div>
+</div><!-- /main-content -->
 
-  <div style="text-align:center;margin-bottom:16px">
-    <button class="btn-submit" style="width:auto;padding:10px 24px;display:inline-block" onclick="exportRecords()">📥 导出巡检记录(CSV)</button>
+<!-- 提交成功弹窗 -->
+<div class="success-overlay" id="success-overlay">
+  <div class="success-box">
+    <div class="success-icon">✓</div>
+    <h3>巡检完成</h3>
+    <p id="success-msg">巡检记录已提交</p>
+    <button onclick="closeSuccess()">确定</button>
   </div>
-
-  <div class="tips">💡 巡检记录保存在本设备浏览器中，更换手机或清除缓存后将无法查看。导出CSV可备份记录。</div>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <script>
+// Supabase配置
+const SUPABASE_URL = 'https://mlscimtjjrkyjwxanqm.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_F8rANI-L-qG2rOt9Ed-mbw_xlzvBIle';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// 当前登录的巡检员
+let currentInspector = null;
+
+// 从云端获取巡检员列表
+async function getInspectors() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('inspectors')
+      .select('*')
+      .eq('active', true);
+    if (error) {
+      console.error('获取巡检员列表失败:', error);
+      return [];
+    }
+    return data || [];
+  } catch (e) {
+    console.error('获取巡检员列表异常:', e);
+    return [];
+  }
+}
+
+// 简单的密码编码（base64）
+function encodePassword(pwd) {
+  return btoa(unescape(encodeURIComponent(pwd)));
+}
+
+// 登录
+async function doLogin() {
+  const id = document.getElementById('login-id').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errorEl = document.getElementById('login-error');
+  
+  if (!id || !password) {
+    errorEl.innerText = '请输入工号和密码';
+    return;
+  }
+  
+  errorEl.innerText = '登录中...';
+  
+  const inspectors = await getInspectors();
+  const encodedPwd = encodePassword(password);
+  const inspector = inspectors.find(i => i.id === id && i.password === encodedPwd);
+  
+  if (inspector) {
+    // 登录成功
+    currentInspector = inspector;
+    localStorage.setItem('firemap_inspector', JSON.stringify({
+      id: inspector.id,
+      name: inspector.name,
+      loginTime: Date.now()
+    }));
+    showMainContent();
+    errorEl.innerText = '';
+  } else {
+    errorEl.innerText = '工号或密码错误';
+  }
+}
+
+// 检查登录状态（7天内有效）
+function checkLogin() {
+  try {
+    const saved = localStorage.getItem('firemap_inspector');
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (Date.now() - data.loginTime < 7 * 24 * 60 * 60 * 1000) {
+        currentInspector = data;
+        return true;
+      }
+    }
+  } catch (e) {}
+  return false;
+}
+
+// 退出登录
+function logout() {
+  localStorage.removeItem('firemap_inspector');
+  currentInspector = null;
+  document.getElementById('main-content').style.display = 'none';
+  document.getElementById('login-overlay').style.display = 'flex';
+  document.getElementById('login-id').value = '';
+  document.getElementById('login-password').value = '';
+  document.getElementById('login-error').innerText = '';
+}
+
+// 显示主内容
+function showMainContent() {
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('main-content').style.display = 'block';
+  // 自动填充巡检人姓名
+  if (currentInspector) {
+    const personInput = document.getElementById('check-person');
+    if (personInput) {
+      personInput.value = currentInspector.name;
+      personInput.readOnly = true;
+      personInput.style.background = '#f5f5f5';
+    }
+  }
+}
+
+// 从云端获取设备信息
+async function getDeviceFromCloud(deviceId) {
+  try {
+    const { data, error } = await supabaseClient
+      .from('devices')
+      .select('*')
+      .eq('id', deviceId)
+      .single();
+    if (error) {
+      console.error('从云端获取设备失败:', error);
+      return null;
+    }
+    return data ? data.device_data : null;
+  } catch (e) {
+    console.error('从云端获取设备异常:', e);
+    return null;
+  }
+}
+
+// 提交巡检记录到云端
+async function submitInspectToCloud(record) {
+  try {
+    const logData = {
+      id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+      device_id: record.deviceId || '',
+      floor_id: record.floorId || '',
+      inspector: record.inspector || '',
+      result: record.result || '',
+      remark: record.remark || '',
+      photo: record.photo || '',
+      inspect_date: record.inspectDate || new Date().toISOString().split('T')[0],
+      inspect_time: record.inspectTime || new Date().toTimeString().split(' ')[0],
+      source: 'qrcode'
+    };
+    const { error } = await supabaseClient.from('inspect_logs').insert(logData);
+    if (error) {
+      console.error('提交巡检记录到云端失败:', error);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('提交巡检记录到云端异常:', e);
+    return false;
+  }
+}
+let currentResult = "正常";
+let currentPhoto = null;
+
 function getQueryParam(name) {
   return new URL(window.location.href).searchParams.get(name);
 }
@@ -201,19 +544,37 @@ function getStatusClass(s) {
   if (s === "待维保") return "status-wait";
   return "";
 }
+
+// 巡检记录存储key（主系统可读取）
 function getStorageKey() {
-  const data = getQueryParam("data");
-  return "fire_check_" + (data ? data.substring(0, 20) : "unknown");
+  const devId = getQueryParam("id") || "unknown";
+  return "firemap_inspect_pending_" + devId;
 }
+
 function loadRecords() {
   try {
-    const key = getStorageKey();
-    return JSON.parse(localStorage.getItem(key) || "[]");
+    // 读取该设备的所有巡检记录
+    const allRecords = JSON.parse(localStorage.getItem("firemap_inspect_records") || "{}");
+    const devId = getQueryParam("id") || "unknown";
+    return allRecords[devId] || [];
   } catch(e) { return []; }
 }
-function saveRecords(list) {
-  try { localStorage.setItem(getStorageKey(), JSON.stringify(list)); } catch(e) {}
+
+function saveRecord(record) {
+  try {
+    const allRecords = JSON.parse(localStorage.getItem("firemap_inspect_records") || "{}");
+    const devId = getQueryParam("id") || "unknown";
+    if (!allRecords[devId]) allRecords[devId] = [];
+    allRecords[devId].push(record);
+    localStorage.setItem("firemap_inspect_records", JSON.stringify(allRecords));
+    
+    // 同时存入待同步队列，主系统启动时导入
+    const pending = JSON.parse(localStorage.getItem("firemap_inspect_pending") || "[]");
+    pending.push({...record, deviceId: devId, synced: false});
+    localStorage.setItem("firemap_inspect_pending", JSON.stringify(pending));
+  } catch(e) {}
 }
+
 function renderRecords() {
   const list = loadRecords();
   const el = document.getElementById("records-list");
@@ -228,60 +589,100 @@ function renderRecords() {
   });
   el.innerHTML = html;
 }
+
+function selectResult(el) {
+  document.querySelectorAll('.result-option').forEach(o => o.classList.remove('active'));
+  el.classList.add('active');
+  currentResult = el.dataset.result;
+}
+
+function previewPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    currentPhoto = e.target.result;
+    const preview = document.getElementById('photo-preview');
+    preview.src = currentPhoto;
+    preview.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
 function submitCheck() {
-  const person = document.getElementById("check-person").value.trim();
-  const result = document.getElementById("check-result").value;
+  // 验证登录状态
+  if (!currentInspector) {
+    alert('请先登录');
+    return;
+  }
+  
+  const person = currentInspector.name;
+  const inspectorId = currentInspector.id;
   const remark = document.getElementById("check-remark").value.trim();
-  if (!person) { alert("请输入检查人姓名"); return; }
+  
   const now = new Date();
   const date = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0") + "-" + String(now.getDate()).padStart(2,"0") + " " + String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0");
-  const list = loadRecords();
-  list.push({ person, result, remark, date });
-  saveRecords(list);
-  document.getElementById("check-person").value = "";
-  document.getElementById("check-remark").value = "";
-  renderRecords();
-  alert("巡检记录已提交！");
-}
-function exportRecords() {
-  const list = loadRecords();
-  if (!list.length) { alert("暂无巡检记录可导出"); return; }
-  let csv = "\uFEFF检查人,检查结果,检查时间,备注\n";
-  list.forEach(r => {
-    csv += '"' + r.person + '","' + r.result + '","' + r.date + '","' + (r.remark || "") + '"\n';
-  });
-  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "巡检记录_" + new Date().toISOString().split("T")[0] + ".csv";
-  a.click();
-  URL.revokeObjectURL(url);
-}
-function renderUsageGuide(type) {
-  const el = document.getElementById("usage-guide");
-  const guides = {
-    "室内消火栓": "1. 打开消火栓门<br>2. 取出水带，一端接消火栓口，一端接水枪<br>3. 逆时针打开阀门<br>4. 握紧水枪，对准火焰根部喷射",
-    "灭火器": "1. 提起灭火器<br>2. 拔掉保险销<br>3. 握住喷管，对准火焰根部<br>4. 压下压把，左右扫射",
-    "烟感探测器": "定期检查指示灯是否正常闪烁<br>每年进行一次功能测试<br>发现故障及时更换",
-    "喷淋头": "定期检查喷淋头是否有损坏、堵塞<br>每年进行一次末端试水<br>发现漏水及时维修",
-    "防火门": "保持防火门常闭状态<br>检查闭门器是否正常工作<br>禁止堆放物品阻挡防火门"
+  
+  const record = { 
+    person, 
+    inspectorId,
+    result: currentResult, 
+    remark, 
+    date,
+    photo: currentPhoto,
+    timestamp: now.getTime()
   };
-  let content = guides[type] || "请查阅设备说明书或联系物业管理人员了解使用方法。<br><br>消防设备应定期检查，确保完好有效。";
-  el.innerHTML = "<p>" + content + "</p>";
+  
+  saveRecord(record);
+  
+  // 同时提交到云端
+  const deviceId = getQueryParam("id");
+  if (deviceId) {
+    submitInspectToCloud({
+      deviceId: deviceId,
+      inspector: person,
+      inspectorId: inspectorId,
+      result: currentResult,
+      remark: remark,
+      photo: currentPhoto,
+      inspectDate: date.split(" ")[0],
+      inspectTime: date.split(" ")[1]
+    });
+  }
+  
+  // 清空表单（保留巡检人姓名）
+  document.getElementById("check-remark").value = "";
+  document.getElementById("check-photo").value = "";
+  document.getElementById("photo-preview").style.display = "none";
+  currentPhoto = null;
+  
+  renderRecords();
+  
+  // 显示成功弹窗
+  document.getElementById("success-msg").innerText = 
+    currentResult === "正常" ? "设备正常，巡检完成" : 
+    currentResult === "故障" ? "已标记故障，请及时维修" : "已标记需维保，请安排保养";
+  document.getElementById("success-overlay").style.display = "flex";
 }
+
+function closeSuccess() {
+  document.getElementById("success-overlay").style.display = "none";
+}
+
 function render(d) {
   const type = d.type || "未知设备";
   const code = d.code || "";
   const status = d.status || "未知";
   const labels = d.labels || {};
   const L = (key, def) => labels[key] || def;
+  
   document.getElementById("dev-title").innerText = type;
   document.getElementById("dev-code").innerText = code ? "编号：" + code : "";
   const tag = document.getElementById("dev-status-tag");
   tag.innerText = status;
   tag.className = "status-tag " + getStatusClass(status);
-  document.title = type + (code ? " " + code : "") + " - 消防设备信息";
+  document.title = type + (code ? " " + code : "") + " - 消防设备巡检";
+  
   const rows = [];
   if (d.pos) rows.push([L("pos", "位置"), d.pos]);
   rows.push(["状态", status]);
@@ -291,27 +692,60 @@ function render(d) {
   if (d.manufacturer) rows.push([L("manufacturer", "生产厂家"), d.manufacturer]);
   if (d.model) rows.push([L("model", "规格型号"), d.model]);
   if (d.person) rows.push([L("person", "责任人"), d.person]);
-  if (d.phone) rows.push([L("phone", "联系电话"), d.phone]);
   if (d.remark) rows.push([L("remark", "备注"), d.remark]);
   if (d.customData) {
     Object.keys(d.customData).forEach(k => {
       rows.push([k, d.customData[k]]);
     });
   }
+  
   const table = document.getElementById("info-table");
   if (!rows.length) {
     table.innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;padding:30px">暂无设备信息</td></tr>';
   } else {
     table.innerHTML = rows.map(r => '<tr><td>' + r[0] + '</td><td>' + r[1] + '</td></tr>').join("");
   }
-  renderUsageGuide(type);
 }
-const data = getQueryParam("data");
-if (data) {
-  const d = decodeData(data);
-  if (d) render(d);
+
+// 初始化
+async function init() {
+  // 先检查登录状态
+  if (checkLogin()) {
+    showMainContent();
+  } else {
+    // 未登录，显示登录界面
+    document.getElementById('login-overlay').style.display = 'flex';
+    return;
+  }
+  
+  const deviceId = getQueryParam("id");
+  const data = getQueryParam("data");
+  
+  if (deviceId) {
+    // 云端模式：从云端读取设备信息
+    document.getElementById("info-table").innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;padding:30px">加载中...</td></tr>';
+    const d = await getDeviceFromCloud(deviceId);
+    if (d) {
+      render(d);
+    } else {
+      document.getElementById("info-table").innerHTML = '<tr><td colspan="2" style="text-align:center;color:#d97706;padding:30px">设备信息加载失败<br>请检查网络或联系管理员</td></tr>';
+    }
+  } else if (data) {
+    // 兼容旧版：从URL参数读取
+    const d = decodeData(data);
+    if (d) render(d);
+  }
+  renderRecords();
 }
-renderRecords();
+init();
+
+// 回车键登录
+document.getElementById('login-password').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') doLogin();
+});
+document.getElementById('login-id').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') document.getElementById('login-password').focus();
+});
 </script>
 </body>
 </html>

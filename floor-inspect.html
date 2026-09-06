@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>楼层巡检</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+  background: #f5f5f5;
+  min-height: 100vh;
+  padding-bottom: 80px;
+}
+.header {
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
+  color: #fff;
+  padding: 20px;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header h1 { font-size: 20px; font-weight: 600; margin-bottom: 4px; }
+.header .sub { font-size: 13px; opacity: 0.9; }
+.progress-bar {
+  background: rgba(255,255,255,0.3);
+  border-radius: 10px;
+  height: 8px;
+  margin-top: 12px;
+  overflow: hidden;
+}
+.progress-fill {
+  background: #fff;
+  height: 100%;
+  border-radius: 10px;
+  transition: width 0.3s;
+}
+.progress-text {
+  font-size: 12px;
+  margin-top: 6px;
+  opacity: 0.9;
+}
+.container { padding: 16px; max-width: 600px; margin: 0 auto; }
+.device-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border-left: 4px solid #ddd;
+  transition: all 0.2s;
+}
+.device-card.checked { border-left-color: #10b981; background: #f0fdf4; }
+.device-card.fault { border-left-color: #ef4444; background: #fef2f2; }
+.device-card.maintain { border-left-color: #f59e0b; background: #fffbeb; }
+.device-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.device-name { font-weight: 600; font-size: 15px; color: #333; }
+.device-code { font-size: 12px; color: #999; }
+.device-info { font-size: 13px; color: #666; margin-bottom: 10px; }
+.result-buttons {
+  display: flex;
+  gap: 6px;
+}
+.result-btn {
+  flex: 1;
+  padding: 8px 4px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  background: #fff;
+  font-size: 12px;
+  cursor: pointer;
+  text-align: center;
+}
+.result-btn.active-normal { background: #dcfce7; border-color: #10b981; color: #166534; }
+.result-btn.active-fault { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
+.result-btn.active-maintain { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
+.bottom-bar {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background: #fff;
+  padding: 12px 16px;
+  box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
+  display: flex;
+  gap: 10px;
+}
+.btn {
+  flex: 1;
+  padding: 12px;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-all-normal {
+  background: #10b981;
+  color: #fff;
+}
+.btn-submit {
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
+  color: #fff;
+}
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.person-input {
+  background: #fff;
+  padding: 12px 16px;
+  margin: 10px 0;
+  border-radius: 8px;
+}
+.person-input label { font-size: 13px; color: #666; display: block; margin-bottom: 6px; }
+.person-input input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+}
+.empty { text-align: center; padding: 40px; color: #999; }
+.success-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 999;
+}
+.success-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 40px 30px;
+  text-align: center;
+  max-width: 300px;
+}
+.success-icon {
+  width: 60px;
+  height: 60px;
+  background: #10b981;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  font-size: 30px;
+  color: #fff;
+}
+/* 登录界面 */
+.login-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+.login-box {
+  background: #fff;
+  border-radius: 16px;
+  padding: 30px 24px;
+  width: 90%;
+  max-width: 320px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+.login-box h2 {
+  text-align: center;
+  color: #c0392b;
+  margin-bottom: 6px;
+  font-size: 20px;
+}
+.login-box .subtitle {
+  text-align: center;
+  color: #999;
+  font-size: 13px;
+  margin-bottom: 20px;
+}
+.login-box .form-group { margin-bottom: 14px; }
+.login-box label {
+  display: block;
+  font-size: 13px;
+  color: #666;
+  margin-bottom: 6px;
+}
+.login-box input {
+  width: 100%;
+  padding: 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 15px;
+  box-sizing: border-box;
+}
+.login-box input:focus {
+  outline: none;
+  border-color: #c0392b;
+}
+.login-box .btn-login {
+  width: 100%;
+  padding: 13px;
+  background: linear-gradient(135deg, #c0392b, #e74c3c);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 6px;
+}
+.login-error {
+  color: #e74c3c;
+  font-size: 13px;
+  text-align: center;
+  margin-top: 10px;
+  min-height: 18px;
+}
+</style>
+</head>
+<body>
+<!-- 登录界面 -->
+<div class="login-overlay" id="login-overlay">
+  <div class="login-box">
+    <h2>🔥 楼层巡检</h2>
+    <div class="subtitle">请登录后进行巡检</div>
+    <div class="form-group">
+      <label>工号</label>
+      <input type="text" id="login-id" placeholder="请输入工号" maxlength="20">
+    </div>
+    <div class="form-group">
+      <label>密码</label>
+      <input type="password" id="login-password" placeholder="请输入密码" maxlength="20">
+    </div>
+    <button class="btn-login" onclick="doLogin()">登 录</button>
+    <div class="login-error" id="login-error"></div>
+  </div>
+</div>
+
+<!-- 主内容（登录后显示） -->
+<div id="main-content" style="display:none">
+<div class="header">
+  <h1 id="floor-title">楼层巡检</h1>
+  <div class="sub" id="floor-sub">加载中...</div>
+  <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
+  <div class="progress-text" id="progress-text">已巡检 0 / 0</div>
+</div>
+
+<div class="container">
+  <div class="person-input">
+    <label>巡检人 *</label>
+    <input type="text" id="inspect-person" placeholder="请输入巡检人姓名">
+  </div>
+  
+  <div id="device-list">
+    <div class="empty">加载设备列表中...</div>
+  </div>
+</div>
+
+<div class="bottom-bar">
+  <button class="btn btn-all-normal" onclick="markAllNormal()">一键全部正常</button>
+  <button class="btn btn-submit" onclick="submitInspection()">提交巡检</button>
+</div>
+
+<div class="success-overlay" id="success-overlay">
+  <div class="success-box">
+    <div class="success-icon">✓</div>
+    <h3 style="color:#333;margin-bottom:8px">巡检完成</h3>
+    <p style="color:#666;font-size:14px;margin-bottom:20px" id="success-msg">已提交巡检记录</p>
+    <button class="btn btn-submit" onclick="closeSuccess()">确定</button>
+  </div>
+</div>
+</div><!-- /main-content -->
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+// Supabase配置
+const SUPABASE_URL = 'https://mlscimtjjrkyjwxanqm.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_F8rANI-L-qG2rOt9Ed-mbw_xlzvBIle';
+const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// 当前登录的巡检员
+let currentInspector = null;
+
+// 简单的密码编码（base64）
+function encodePassword(pwd) {
+  return btoa(unescape(encodeURIComponent(pwd)));
+}
+
+// 从云端获取巡检员列表
+async function getInspectors() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('inspectors')
+      .select('*')
+      .eq('active', true);
+    if (error) return [];
+    return data || [];
+  } catch (e) {
+    return [];
+  }
+}
+
+// 登录
+async function doLogin() {
+  const id = document.getElementById('login-id').value.trim();
+  const password = document.getElementById('login-password').value;
+  const errorEl = document.getElementById('login-error');
+  
+  if (!id || !password) {
+    errorEl.innerText = '请输入工号和密码';
+    return;
+  }
+  
+  errorEl.innerText = '登录中...';
+  
+  const inspectors = await getInspectors();
+  const encodedPwd = encodePassword(password);
+  const inspector = inspectors.find(i => i.id === id && i.password === encodedPwd);
+  
+  if (inspector) {
+    currentInspector = inspector;
+    localStorage.setItem('firemap_inspector', JSON.stringify({
+      id: inspector.id,
+      name: inspector.name,
+      loginTime: Date.now()
+    }));
+    showMainContent();
+    errorEl.innerText = '';
+    // 登录后重新初始化
+    init();
+  } else {
+    errorEl.innerText = '工号或密码错误';
+  }
+}
+
+// 检查登录状态（7天内有效）
+function checkLogin() {
+  try {
+    const saved = localStorage.getItem('firemap_inspector');
+    if (saved) {
+      const data = JSON.parse(saved);
+      if (Date.now() - data.loginTime < 7 * 24 * 60 * 60 * 1000) {
+        currentInspector = data;
+        return true;
+      }
+    }
+  } catch (e) {}
+  return false;
+}
+
+// 显示主内容
+function showMainContent() {
+  document.getElementById('login-overlay').style.display = 'none';
+  document.getElementById('main-content').style.display = 'block';
+  if (currentInspector) {
+    const personInput = document.getElementById('inspect-person');
+    if (personInput) {
+      personInput.value = currentInspector.name;
+      personInput.readOnly = true;
+      personInput.style.background = '#f5f5f5';
+    }
+  }
+}
+
+// 从云端获取楼层设备列表
+async function getFloorDevicesFromCloud(floorId) {
+  try {
+    const { data, error } = await supabaseClient
+      .from('devices')
+      .select('*')
+      .eq('floor_id', floorId);
+    if (error) {
+      console.error('从云端获取楼层设备失败:', error);
+      return [];
+    }
+    return data ? data.map(d => d.device_data) : [];
+  } catch (e) {
+    console.error('从云端获取楼层设备异常:', e);
+    return [];
+  }
+}
+
+// 从云端获取楼层信息
+async function getFloorFromCloud(floorId) {
+  try {
+    const { data, error } = await supabaseClient
+      .from('floors')
+      .select('*')
+      .eq('id', floorId)
+      .single();
+    if (error) return null;
+    return data;
+  } catch (e) {
+    return null;
+  }
+}
+
+// 批量提交巡检记录到云端
+async function submitFloorInspectToCloud(records) {
+  if (!records || records.length === 0) return true;
+  try {
+    const logData = records.map(r => ({
+      id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+      device_id: r.deviceId || '',
+      floor_id: r.floorId || '',
+      inspector: r.inspector || '',
+      result: r.result || '',
+      remark: r.remark || '',
+      inspect_date: r.inspectDate || new Date().toISOString().split('T')[0],
+      inspect_time: r.inspectTime || new Date().toTimeString().split(' ')[0],
+      source: 'floor_qrcode'
+    }));
+    const { error } = await supabaseClient.from('inspect_logs').insert(logData);
+    if (error) {
+      console.error('批量提交巡检记录失败:', error);
+      return false;
+    }
+    return true;
+  } catch (e) {
+    console.error('批量提交巡检记录异常:', e);
+    return false;
+  }
+}
+
+let devices = [];
+let results = {}; // {deviceId: "normal"|"fault"|"maintain"}
+
+function getQueryParam(name) {
+  return new URL(window.location.href).searchParams.get(name);
+}
+
+function decodeData(str) {
+  try { return JSON.parse(decodeURIComponent(escape(atob(str)))); } catch(e) { return null; }
+}
+
+async function init() {
+  // 先检查登录状态
+  if (!checkLogin()) {
+    document.getElementById('login-overlay').style.display = 'flex';
+    return;
+  }
+  showMainContent();
+  
+  const floorId = getQueryParam("floorId");
+  const data = getQueryParam("data");
+  
+  if (floorId) {
+    // 云端模式：从云端读取楼层设备
+    document.getElementById("device-list").innerHTML = '<div class="empty">加载中...</div>';
+    
+    // 同时获取楼层信息和设备列表
+    const [floorInfo, deviceList] = await Promise.all([
+      getFloorFromCloud(floorId),
+      getFloorDevicesFromCloud(floorId)
+    ]);
+    
+    const buildingName = floorInfo ? floorInfo.building_name : "";
+    const floorName = floorInfo ? floorInfo.floor_name : "未知楼层";
+    
+    document.getElementById("floor-title").innerText = buildingName + " - " + floorName;
+    document.getElementById("floor-sub").innerText = "共 " + deviceList.length + " 个设备";
+    
+    if (deviceList.length === 0) {
+      document.getElementById("device-list").innerHTML = '<div class="empty">该楼层暂无设备</div>';
+      return;
+    }
+    
+    devices = deviceList;
+    renderDevices();
+    updateProgress();
+  } else if (data) {
+    // 兼容旧版：从URL参数读取
+    const floorData = decodeData(data);
+    if (!floorData) {
+      document.getElementById("device-list").innerHTML = '<div class="empty">无效的楼层巡检二维码</div>';
+      return;
+    }
+    
+    const buildingName = floorData.buildingName || floorData.b || "";
+    const floorName = floorData.floorName || floorData.f || "";
+    const deviceList = floorData.devices || floorData.d || [];
+    
+    document.getElementById("floor-title").innerText = buildingName + " - " + floorName;
+    document.getElementById("floor-sub").innerText = "共 " + deviceList.length + " 个设备";
+    
+    devices = deviceList;
+    renderDevices();
+    updateProgress();
+  } else {
+    document.getElementById("device-list").innerHTML = '<div class="empty">无效的楼层巡检二维码</div>';
+  }
+}
+init();
+
+// 回车键登录
+document.getElementById('login-password').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') doLogin();
+});
+document.getElementById('login-id').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') document.getElementById('login-password').focus();
+});
+
+function renderDevices() {
+  const list = document.getElementById("device-list");
+  if (!devices.length) {
+    list.innerHTML = '<div class="empty">该楼层暂无设备</div>';
+    return;
+  }
+  
+  let html = "";
+  devices.forEach(dev => {
+    const result = results[dev.id];
+    const cardClass = result === "normal" ? "checked" : result === "fault" ? "fault" : result === "maintain" ? "maintain" : "";
+    html += '<div class="device-card ' + cardClass + '">';
+    html += '<div class="device-header">';
+    html += '<span class="device-name">' + dev.type + '</span>';
+    html += '<span class="device-code">' + (dev.code || "未编号") + '</span>';
+    html += '</div>';
+    html += '<div class="device-info">' + (dev.location || "位置未设置") + '</div>';
+    html += '<div class="result-buttons">';
+    html += '<div class="result-btn ' + (result === "normal" ? "active-normal" : "") + '" onclick="setResult(\'' + dev.id + '\',\'normal\')">✅正常</div>';
+    html += '<div class="result-btn ' + (result === "fault" ? "active-fault" : "") + '" onclick="setResult(\'' + dev.id + '\',\'fault\')">⚠️故障</div>';
+    html += '<div class="result-btn ' + (result === "maintain" ? "active-maintain" : "") + '" onclick="setResult(\'' + dev.id + '\',\'maintain\')">🔧维保</div>';
+    html += '</div></div>';
+  });
+  list.innerHTML = html;
+}
+
+function setResult(deviceId, result) {
+  if (results[deviceId] === result) {
+    delete results[deviceId];
+  } else {
+    results[deviceId] = result;
+  }
+  renderDevices();
+  updateProgress();
+}
+
+function markAllNormal() {
+  devices.forEach(dev => {
+    results[dev.id] = "normal";
+  });
+  renderDevices();
+  updateProgress();
+}
+
+function updateProgress() {
+  const checked = Object.keys(results).length;
+  const total = devices.length;
+  const percent = total > 0 ? (checked / total * 100) : 0;
+  document.getElementById("progress-fill").style.width = percent + "%";
+  document.getElementById("progress-text").innerText = "已巡检 " + checked + " / " + total;
+}
+
+async function submitInspection() {
+  // 验证登录状态
+  if (!currentInspector) {
+    alert('请先登录');
+    return;
+  }
+  
+  const person = currentInspector.name;
+  const inspectorId = currentInspector.id;
+  
+  const checked = Object.keys(results).length;
+  if (checked === 0) { alert("请至少巡检一个设备"); return; }
+  
+  const now = new Date();
+  const date = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0") + "-" + String(now.getDate()).padStart(2,"0") + " " + String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0");
+  
+  const floorId = getQueryParam("floorId");
+  const records = [];
+  
+  let faultCount = 0, maintainCount = 0;
+  
+  for (const [deviceId, result] of Object.entries(results)) {
+    const resultText = result === "normal" ? "正常" : result === "fault" ? "故障" : "需维保";
+    if (result === "fault") faultCount++;
+    if (result === "maintain") maintainCount++;
+    
+    records.push({
+      deviceId,
+      floorId: floorId || '',
+      inspector: person,
+      inspectorId: inspectorId,
+      result: resultText,
+      remark: "楼层批量巡检",
+      inspectDate: date.split(" ")[0],
+      inspectTime: date.split(" ")[1]
+    });
+  }
+  
+  // 提交到云端
+  await submitFloorInspectToCloud(records);
+  
+  // 同时保存到本地待同步队列（兼容旧版）
+  const pending = JSON.parse(localStorage.getItem("firemap_inspect_pending") || "[]");
+  records.forEach(r => {
+    pending.push({
+      deviceId: r.deviceId,
+      person: r.inspector,
+      result: r.result,
+      remark: r.remark,
+      date,
+      timestamp: now.getTime(),
+      synced: true
+    });
+  });
+  localStorage.setItem("firemap_inspect_pending", JSON.stringify(pending));
+  
+  // 显示成功
+  let msg = "已巡检 " + checked + " 个设备";
+  if (faultCount > 0) msg += "，其中 " + faultCount + " 个故障";
+  if (maintainCount > 0) msg += "，" + maintainCount + " 个需维保";
+  document.getElementById("success-msg").innerText = msg;
+  document.getElementById("success-overlay").style.display = "flex";
+}
+
+function closeSuccess() {
+  document.getElementById("success-overlay").style.display = "none";
+  // 清空结果
+  results = {};
+  renderDevices();
+  updateProgress();
+}
+
+init();
+</script>
+</body>
+</html>
