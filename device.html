@@ -393,8 +393,7 @@ async function getInspectors() {
   try {
     const { data, error } = await supabaseClient
       .from('inspectors')
-      .select('*')
-      .eq('active', true);
+      .select('*');
     if (error) {
       console.error('获取巡检员列表失败:', error);
       return [];

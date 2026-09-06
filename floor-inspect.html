@@ -295,8 +295,7 @@ async function getInspectors() {
   try {
     const { data, error } = await supabaseClient
       .from('inspectors')
-      .select('*')
-      .eq('active', true);
+      .select('*');
     if (error) return [];
     return data || [];
   } catch (e) {
