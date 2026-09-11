@@ -15,6 +15,31 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof importPendingInspectRecords === 'function') importPendingInspectRecords();
   // 初始化云端同步
   if (typeof Cloud !== 'undefined') Cloud.init();
+  // 扫码实时联动：扫码页提交巡检后，主系统即时刷新设备状态
+  let _lastDeviceChange = localStorage.getItem('firemap_device_change') || '';
+  window.addEventListener('storage', (e) => {
+    if (e.key === 'firemap_device_change' && e.newValue !== e.oldValue) {
+      _lastDeviceChange = e.newValue || '';
+      if (typeof refreshFromScanRealtime === 'function') refreshFromScanRealtime();
+    }
+  });
+  // 兜底轮询：15秒检查一次变更标记（storage 事件不可靠时也能刷新）
+  setInterval(() => {
+    try {
+      const cur = localStorage.getItem('firemap_device_change') || '';
+      if (cur !== _lastDeviceChange) {
+        _lastDeviceChange = cur;
+        if (typeof refreshFromScanRealtime === 'function') refreshFromScanRealtime();
+      }
+    } catch(e) {}
+  }, 15000);
+  // 云端模式兜底：30秒主动拉取一次（手机扫码更新云端后，主系统自动感知）
+  setInterval(() => {
+    try {
+      const cloudOn = (typeof Cloud !== 'undefined' && Cloud.enabled && Cloud.supabase);
+      if (cloudOn && typeof refreshFromScanRealtime === 'function') refreshFromScanRealtime();
+    } catch(e) {}
+  }, 30000);
   // 自动修复可访问性属性
   fixAccessibility();
   // 给所有弹窗添加右上角关闭按钮

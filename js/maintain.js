@@ -835,6 +835,16 @@ async function openInspectRecords() {
   renderInspectRecords();
 }
 
+// 巡检结果归一化（兼容中英文存储，中文/英文/拼音都归一为中文）
+function normStatus(s) {
+  if (!s) return "需维保";
+  const v = String(s).toLowerCase().trim();
+  if (v === "normal" || v === "正常") return "正常";
+  if (v === "fault" || v === "故障") return "故障";
+  if (v === "maintain-needed" || v === "需维保" || v === "待维保") return "需维保";
+  return s; // 其他值原样返回
+}
+
 // 加载巡检记录：合并本地 S_LOG + 云端 inspect_logs，优先用快照
 async function loadInspectRecords() {
   let combineList = [];
@@ -849,7 +859,7 @@ async function loadInspectRecords() {
         inspect_date: log.inspectDate,
         inspect_time: log.inspectTime,
         inspector_name: log.inspector,
-        status: log.result === "normal" ? "正常" : log.result === "fault" ? "故障" : "需维保",
+        status: normStatus(log.result),
         remark: log.remark || "",
         source: log.source === "qrcode" ? "扫码巡检" : "本地打卡",
         snap_building: log.snapshot_buildingName || "",
@@ -872,7 +882,7 @@ async function loadInspectRecords() {
             inspect_date: r.inspect_date,
             inspect_time: r.inspect_time,
             inspector_name: r.inspector_name,
-            status: r.status === "normal" ? "正常" : r.status === "fault" ? "故障" : (r.status || "需维保"),
+            status: normStatus(r.status),
             remark: r.remark || "",
             source: "云端",
             snap_building: r.snapshot_building_name || "",
@@ -899,15 +909,6 @@ async function loadInspectRecords() {
 // 根据巡检记录同步设备状态（独立函数，可在任何地方调用）
 async function syncDeviceStatusFromInspectRecords() {
   try {
-    // 状态归一化函数（支持中英文）
-    const normStatus = (s) => {
-      if (!s) return "需维保";
-      const v = String(s).toLowerCase().trim();
-      if (v === "normal" || v === "正常") return "正常";
-      if (v === "fault" || v === "故障") return "故障";
-      if (v === "maintain-needed" || v === "需维保" || v === "待维保") return "需维保";
-      return s; // 其他值原样返回
-    };
     // 加载所有巡检记录（本地+云端）
     const allRecords = [];
     // 本地记录
@@ -1002,7 +1003,28 @@ async function syncDeviceStatusFromInspectRecords() {
           console.log(`    → 判定为未处理，保持故障`);
         }
       }
-      else if (latest.status === "需维保") newStatus = "待维保";
+      else if (latest.status === "需维保") {
+        newStatus = "待维保";
+        // 业务闭环：巡检"需维保"自动生成维保工单（同设备无进行中的维保工单时）
+        const hasActiveMaintainOrder = workOrders.some(w => w.deviceId === dev.id && w.type === "maintain" && w.status !== "accepted");
+        if (!hasActiveMaintainOrder) {
+          try {
+            await createWorkOrder({
+              title: "维保工单-" + (dev.deviceType || "设备"),
+              type: "maintain",
+              priority: "normal",
+              description: "巡检发现需维保（巡检记录ID:" + (latest.id || "无") + "），请安排维保",
+              deviceId: dev.id,
+              snapshot_buildingName: latest.snapshot_buildingName || dev.buildingName || "",
+              snapshot_floorName: latest.snapshot_floorName || dev.floorName || "",
+              snapshot_deviceType: latest.snapshot_deviceType || dev.deviceType || "",
+              snapshot_deviceCode: latest.snapshot_deviceCode || dev.deviceCode || "",
+              inspectLogId: latest.id || null
+            });
+            console.log(`  ⚙️ 已自动生成维保工单：设备[${dev.deviceType || dev.id}] 巡检记录=${latest.id}`);
+          } catch(e) { console.warn("自动创建维保工单失败:", e); }
+        }
+      }
       else if (latest.status === "正常") newStatus = "正常";
       if (newStatus && dev.status !== newStatus) {
         dev.status = newStatus;
@@ -1030,6 +1052,33 @@ async function syncDeviceStatusFromInspectRecords() {
       console.log("同步-设备状态已是最新，无需更新");
     }
   } catch (e) { console.warn("同步设备状态失败", e); }
+}
+
+/* ============================================================
+ * 扫码提交实时联动：扫码页提交巡检后，主系统自动刷新设备状态
+ * 触发方式：storage 事件（同浏览器不同标签页即时触发）+ 定时兜底
+ * ============================================================ */
+let _realtimeRefreshing = false;
+async function refreshFromScanRealtime() {
+  if (_realtimeRefreshing) return; // 防重入
+  _realtimeRefreshing = true;
+  try {
+    // 重新加载巡检记录（本地+云端）并同步设备状态（含自动生成维保工单）
+    if (typeof loadInspectRecords === 'function') {
+      await loadInspectRecords();
+    } else if (typeof syncDeviceStatusFromInspectRecords === 'function') {
+      await syncDeviceStatusFromInspectRecords();
+    }
+    // 刷新统计、地图、工作台、已打开列表
+    if (typeof calcStat === 'function') calcStat();
+    if (typeof renderDeviceMarkers === 'function') renderDeviceMarkers();
+    if (typeof refreshAllAfterOrderChange === 'function') {
+      try { await refreshAllAfterOrderChange(); } catch(e) {}
+    }
+  } catch (e) {
+    console.warn("扫码实时刷新失败:", e);
+  }
+  _realtimeRefreshing = false;
 }
 
 // 渲染巡检记录列表（9列）
@@ -2159,6 +2208,7 @@ async function createWorkOrder(data) {
     cost: 0,
     photos: [],
     remark: data.remark || "",
+    inspectLogId: data.inspectLogId || null, // 关联巡检记录（闭环匹配用）
     // 位置快照
     snapshot_buildingName: data.snapshot_buildingName || "",
     snapshot_floorName: data.snapshot_floorName || "",
