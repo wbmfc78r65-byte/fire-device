@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>楼层巡检</title>
+<title>楼层巡检 - 消防设施管理</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
@@ -35,11 +35,7 @@ body {
   border-radius: 10px;
   transition: width 0.3s;
 }
-.progress-text {
-  font-size: 12px;
-  margin-top: 6px;
-  opacity: 0.9;
-}
+.progress-text { font-size: 12px; margin-top: 6px; opacity: 0.9; }
 .container { padding: 16px; max-width: 600px; margin: 0 auto; }
 .device-card {
   background: #fff;
@@ -53,172 +49,145 @@ body {
 .device-card.checked { border-left-color: #10b981; background: #f0fdf4; }
 .device-card.fault { border-left-color: #ef4444; background: #fef2f2; }
 .device-card.maintain { border-left-color: #f59e0b; background: #fffbeb; }
-.device-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 8px;
-}
-.device-name { font-weight: 600; font-size: 15px; color: #333; }
-.device-code { font-size: 12px; color: #999; }
+.device-name { font-weight: 600; font-size: 15px; color: #333; margin-bottom: 8px; }
+.device-meta { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+.meta-item { font-size: 12px; color: #888; display: flex; align-items: center; gap: 4px; }
 .device-info { font-size: 13px; color: #666; margin-bottom: 10px; }
-.result-buttons {
-  display: flex;
-  gap: 6px;
-}
+.result-buttons { display: flex; gap: 6px; }
 .result-btn {
-  flex: 1;
-  padding: 8px 4px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  background: #fff;
-  font-size: 12px;
-  cursor: pointer;
-  text-align: center;
+  flex: 1; padding: 8px 4px; border: 1px solid #ddd; border-radius: 6px;
+  background: #fff; font-size: 12px; cursor: pointer; text-align: center;
 }
 .result-btn.active-normal { background: #dcfce7; border-color: #10b981; color: #166534; }
 .result-btn.active-fault { background: #fee2e2; border-color: #ef4444; color: #991b1b; }
 .result-btn.active-maintain { background: #fef3c7; border-color: #f59e0b; color: #92400e; }
 .bottom-bar {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background: #fff;
-  padding: 12px 16px;
-  box-shadow: 0 -2px 10px rgba(0,0,0,0.1);
-  display: flex;
-  gap: 10px;
+  position: fixed; bottom: 0; left: 0; right: 0; background: #fff;
+  padding: 12px 16px; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); display: flex; gap: 10px;
 }
-.btn {
-  flex: 1;
-  padding: 12px;
-  border: none;
-  border-radius: 8px;
-  font-size: 14px;
-  font-weight: 600;
-  cursor: pointer;
-}
-.btn-all-normal {
-  background: #10b981;
-  color: #fff;
-}
-.btn-submit {
-  background: linear-gradient(135deg, #c0392b, #e74c3c);
-  color: #fff;
-}
+.btn { flex: 1; padding: 12px; border: none; border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.btn-all-normal { background: #10b981; color: #fff; }
+.btn-submit { background: linear-gradient(135deg, #c0392b, #e74c3c); color: #fff; }
 .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.person-input {
-  background: #fff;
-  padding: 12px 16px;
-  margin: 10px 0;
-  border-radius: 8px;
-}
+.person-input { background: #fff; padding: 12px 16px; margin: 10px 0; border-radius: 8px; }
 .person-input label { font-size: 13px; color: #666; display: block; margin-bottom: 6px; }
-.person-input input {
-  width: 100%;
-  padding: 10px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-}
+.person-input input { width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; }
 .empty { text-align: center; padding: 40px; color: #999; }
 .success-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5);
-  display: none;
-  align-items: center;
-  justify-content: center;
-  z-index: 999;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 999;
 }
-.success-box {
-  background: #fff;
-  border-radius: 16px;
-  padding: 40px 30px;
-  text-align: center;
-  max-width: 300px;
-}
+.success-box { background: #fff; border-radius: 16px; padding: 40px 30px; text-align: center; max-width: 300px; }
 .success-icon {
-  width: 60px;
-  height: 60px;
-  background: #10b981;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 16px;
-  font-size: 30px;
-  color: #fff;
+  width: 60px; height: 60px; background: #10b981; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 30px; color: #fff;
 }
 /* 登录界面 */
 .login-overlay {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
   background: linear-gradient(135deg, #c0392b, #e74c3c);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 1000;
+  display: flex; align-items: center; justify-content: center; z-index: 1000;
 }
 .login-box {
-  background: #fff;
-  border-radius: 16px;
-  padding: 30px 24px;
-  width: 90%;
-  max-width: 320px;
+  background: #fff; border-radius: 16px; padding: 30px 24px; width: 90%; max-width: 320px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.2);
 }
-.login-box h2 {
-  text-align: center;
-  color: #c0392b;
-  margin-bottom: 6px;
-  font-size: 20px;
-}
-.login-box .subtitle {
-  text-align: center;
-  color: #999;
-  font-size: 13px;
-  margin-bottom: 20px;
-}
+.login-box h2 { text-align: center; color: #c0392b; margin-bottom: 6px; font-size: 20px; }
+.login-box .subtitle { text-align: center; color: #999; font-size: 13px; margin-bottom: 20px; }
 .login-box .form-group { margin-bottom: 14px; }
-.login-box label {
-  display: block;
-  font-size: 13px;
-  color: #666;
-  margin-bottom: 6px;
-}
+.login-box label { display: block; font-size: 13px; color: #666; margin-bottom: 6px; }
 .login-box input {
-  width: 100%;
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 15px;
-  box-sizing: border-box;
+  width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 15px; box-sizing: border-box;
 }
-.login-box input:focus {
-  outline: none;
-  border-color: #c0392b;
-}
+.login-box input:focus { outline: none; border-color: #c0392b; }
 .login-box .btn-login {
-  width: 100%;
-  padding: 13px;
-  background: linear-gradient(135deg, #c0392b, #e74c3c);
-  color: #fff;
-  border: none;
-  border-radius: 8px;
-  font-size: 16px;
-  font-weight: 600;
-  cursor: pointer;
-  margin-top: 6px;
+  width: 100%; padding: 13px; background: linear-gradient(135deg, #c0392b, #e74c3c);
+  color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 6px;
 }
-.login-error {
-  color: #e74c3c;
-  font-size: 13px;
-  text-align: center;
-  margin-top: 10px;
-  min-height: 18px;
+.login-error { color: #e74c3c; font-size: 13px; text-align: center; margin-top: 10px; min-height: 18px; }
+/* 角色选择 */
+.role-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(135deg, #1e3a5f, #2563eb);
+  display: none; align-items: center; justify-content: center; z-index: 999;
 }
+.role-box { background: #fff; border-radius: 16px; padding: 30px 24px; width: 90%; max-width: 340px; }
+.role-box h2 { text-align: center; color: #1e3a5f; margin-bottom: 6px; font-size: 20px; }
+.role-box .subtitle { text-align: center; color: #999; font-size: 13px; margin-bottom: 20px; }
+.role-card {
+  display: flex; align-items: center; padding: 16px; border: 2px solid #e5e7eb;
+  border-radius: 12px; margin-bottom: 12px; cursor: pointer; transition: all 0.2s;
+}
+.role-card:hover { border-color: #2563eb; background: #eff6ff; }
+.role-card.selected { border-color: #2563eb; background: #eff6ff; }
+.role-icon { font-size: 32px; margin-right: 14px; }
+.role-info h3 { font-size: 16px; color: #1f2937; margin-bottom: 2px; }
+.role-info p { font-size: 12px; color: #6b7280; }
+.role-btn {
+  width: 100%; padding: 13px; background: linear-gradient(135deg, #1e3a5f, #2563eb);
+  color: #fff; border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer; margin-top: 10px;
+}
+.role-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+/* 工单卡片 */
+.order-card {
+  background: #fff; border-radius: 10px; padding: 14px; margin-bottom: 10px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06); border-left: 4px solid #ef4444;
+}
+.order-card.processing { border-left-color: #f59e0b; }
+.order-card.completed { border-left-color: #3b82f6; }
+.order-card.accepted { border-left-color: #10b981; }
+.order-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.order-title { font-weight: 600; font-size: 15px; color: #333; }
+.order-status { font-size: 11px; padding: 2px 8px; border-radius: 10px; font-weight: 600; }
+.status-pending { background: #fee2e2; color: #991b1b; }
+.status-processing { background: #fef3c7; color: #92400e; }
+.status-completed { background: #dbeafe; color: #1e40af; }
+.status-accepted { background: #dcfce7; color: #166534; }
+.order-info { font-size: 13px; color: #666; line-height: 1.8; margin-bottom: 10px; }
+.order-desc { font-size: 12px; color: #666; background: #f8fafc; padding: 8px; border-radius: 6px; margin-bottom: 10px; }
+.order-actions { display: flex; gap: 8px; }
+.order-btn {
+  flex: 1; padding: 8px; border: none; border-radius: 6px; font-size: 12px;
+  font-weight: 600; cursor: pointer; color: #fff;
+}
+.order-btn.repair { background: #f59e0b; }
+.order-btn.accept { background: #10b981; }
+.order-btn.view { background: #6b7280; }
+/* 管理员菜单 */
+.admin-menu { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px; }
+.admin-card {
+  background: #fff; border-radius: 12px; padding: 20px; text-align: center;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.06); cursor: pointer; transition: all 0.2s;
+}
+.admin-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.1); }
+.admin-icon { font-size: 36px; margin-bottom: 8px; }
+.admin-title { font-size: 14px; font-weight: 600; color: #1f2937; }
+.admin-desc { font-size: 11px; color: #6b7280; margin-top: 4px; }
+/* 顶部用户信息 */
+.user-bar {
+  background: #fff; padding: 10px 16px; display: flex; justify-content: space-between;
+  align-items: center; border-bottom: 1px solid #e5e7eb;
+}
+.user-info { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #666; }
+.user-role {
+  background: #eff6ff; color: #2563eb; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600;
+}
+.switch-role { font-size: 12px; color: #2563eb; cursor: pointer; }
+/* 弹窗 */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5); display: none; align-items: center; justify-content: center; z-index: 998;
+}
+.modal-box { background: #fff; border-radius: 12px; padding: 20px; width: 90%; max-width: 320px; }
+.modal-box h3 { font-size: 16px; color: #1f2937; margin-bottom: 14px; }
+.modal-box textarea {
+  width: 100%; padding: 10px; border: 1px solid #ddd; border-radius: 6px;
+  font-size: 14px; resize: vertical; min-height: 80px; box-sizing: border-box;
+}
+.modal-actions { display: flex; gap: 10px; margin-top: 14px; }
+.modal-btn { flex: 1; padding: 10px; border: none; border-radius: 6px; font-size: 14px; font-weight: 600; cursor: pointer; }
+.modal-btn.cancel { background: #e5e7eb; color: #374151; }
+.modal-btn.confirm { background: #2563eb; color: #fff; }
 </style>
 </head>
 <body>
@@ -226,7 +195,7 @@ body {
 <div class="login-overlay" id="login-overlay">
   <div class="login-box">
     <h2>🔥 楼层巡检</h2>
-    <div class="subtitle">请登录后进行巡检</div>
+    <div class="subtitle">请登录后进行操作</div>
     <div class="form-group">
       <label>工号</label>
       <input type="text" id="login-id" placeholder="请输入工号" maxlength="20">
@@ -240,50 +209,160 @@ body {
   </div>
 </div>
 
+<!-- 角色选择 -->
+<div class="role-overlay" id="role-overlay">
+  <div class="role-box">
+    <h2>选择身份</h2>
+    <div class="subtitle">不同身份看到不同功能</div>
+    <div class="role-card" data-role="inspector" onclick="selectRole('inspector')">
+      <div class="role-icon">👷</div>
+      <div class="role-info">
+        <h3>巡检员</h3>
+        <p>设备巡检打卡、上报故障</p>
+      </div>
+    </div>
+    <div class="role-card" data-role="repairer" onclick="selectRole('repairer')">
+      <div class="role-icon">🔧</div>
+      <div class="role-info">
+        <h3>维修员</h3>
+        <p>查看派单、维修完毕、验收</p>
+      </div>
+    </div>
+    <div class="role-card" data-role="admin" onclick="selectRole('admin')">
+      <div class="role-icon">👨‍💼</div>
+      <div class="role-info">
+        <h3>管理员</h3>
+        <p>全部功能、查看统计</p>
+      </div>
+    </div>
+    <button class="role-btn" id="role-confirm-btn" onclick="confirmRole()" disabled>进入系统</button>
+  </div>
+</div>
+
 <!-- 主内容（登录后显示） -->
 <div id="main-content" style="display:none">
+<div class="user-bar">
+  <div class="user-info">
+    <span id="user-name">用户</span>
+    <span class="user-role" id="user-role">巡检员</span>
+  </div>
+  <span class="switch-role" onclick="switchRole()">切换身份</span>
+</div>
+
+<!-- 巡检员界面 -->
+<div id="inspector-view">
 <div class="header">
   <h1 id="floor-title">楼层巡检</h1>
   <div class="sub" id="floor-sub">加载中...</div>
   <div class="progress-bar"><div class="progress-fill" id="progress-fill" style="width:0%"></div></div>
   <div class="progress-text" id="progress-text">已巡检 0 / 0</div>
 </div>
-
 <div class="container">
-  <div class="person-input">
-    <label>巡检人 *</label>
-    <input type="text" id="inspect-person" placeholder="请输入巡检人姓名">
-  </div>
-  
   <div id="device-list">
     <div class="empty">加载设备列表中...</div>
   </div>
 </div>
-
 <div class="bottom-bar">
   <button class="btn btn-all-normal" onclick="markAllNormal()">一键全部正常</button>
   <button class="btn btn-submit" onclick="submitInspection()">提交巡检</button>
+</div>
+</div>
+
+<!-- 维修员界面 -->
+<div id="repairer-view" style="display:none">
+<div class="header" style="background:linear-gradient(135deg,#92400e,#f59e0b)">
+  <h1>维修工单</h1>
+  <div class="sub" id="repair-sub">加载中...</div>
+</div>
+<div class="container">
+  <div id="order-list">
+    <div class="empty">加载工单中...</div>
+  </div>
+</div>
+</div>
+
+<!-- 管理员界面 -->
+<div id="admin-view" style="display:none">
+<div class="header" style="background:linear-gradient(135deg,#1e3a5f,#2563eb)">
+  <h1>管理中心</h1>
+  <div class="sub" id="admin-sub">选择功能</div>
+</div>
+<div class="container">
+  <div class="admin-menu">
+    <div class="admin-card" onclick="switchToInspector()">
+      <div class="admin-icon">✅</div>
+      <div class="admin-title">巡检打卡</div>
+      <div class="admin-desc">设备巡检、上报故障</div>
+    </div>
+    <div class="admin-card" onclick="showPendingAcceptance()">
+      <div class="admin-icon">✅</div>
+      <div class="admin-title">待验收工单</div>
+      <div class="admin-desc">验收维修完成的工单</div>
+    </div>
+    <div class="admin-card" onclick="showDeviceList()">
+      <div class="admin-icon">📋</div>
+      <div class="admin-title">设备列表</div>
+      <div class="admin-desc">查看本楼层设备</div>
+    </div>
+    <div class="admin-card" onclick="showStats()">
+      <div class="admin-icon">📊</div>
+      <div class="admin-title">统计概览</div>
+      <div class="admin-desc">巡检、工单统计</div>
+    </div>
+  </div>
+  <div id="admin-extra" style="margin-top:20px"></div>
+</div>
 </div>
 
 <div class="success-overlay" id="success-overlay">
   <div class="success-box">
     <div class="success-icon">✓</div>
-    <h3 style="color:#333;margin-bottom:8px">巡检完成</h3>
-    <p style="color:#666;font-size:14px;margin-bottom:20px" id="success-msg">已提交巡检记录</p>
+    <h3 style="color:#333;margin-bottom:8px" id="success-title">操作成功</h3>
+    <p style="color:#666;font-size:14px;margin-bottom:20px" id="success-msg">已提交</p>
     <button class="btn btn-submit" onclick="closeSuccess()">确定</button>
   </div>
 </div>
+
+<!-- 维修说明弹窗 -->
+<div class="modal-overlay" id="repair-modal">
+  <div class="modal-box">
+    <h3>维修完毕</h3>
+    <textarea id="repair-desc" placeholder="请输入维修说明（更换部件、处理过程等）"></textarea>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeRepairModal()">取消</button>
+      <button class="modal-btn confirm" onclick="confirmRepair()">确认维修完毕</button>
+    </div>
+  </div>
+</div>
+
+<!-- 验收弹窗 -->
+<div class="modal-overlay" id="accept-modal">
+  <div class="modal-box">
+    <h3>验收完毕</h3>
+    <textarea id="accept-desc" placeholder="请输入验收意见（选填，如：维修合格、已恢复正常等）"></textarea>
+    <div class="modal-actions">
+      <button class="modal-btn cancel" onclick="closeAcceptModal()">取消</button>
+      <button class="modal-btn confirm" onclick="confirmAccept()">确认验收通过</button>
+    </div>
+  </div>
+</div>
+
 </div><!-- /main-content -->
 
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script src="js/tcb.js"></script>
 <script>
-// Supabase配置
-const SUPABASE_URL = 'https://mlscimtjjrkyjwxanqm.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_F8rANI-L-qG2rOt9Ed-mbw_xlzvBIle';
-const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// 腾讯云配置
+const SUPABASE_URL = 'https://fire-map-system-d4f7rw8wbd00e5f5.api.tcloudbasegateway.com';
+const SUPABASE_KEY = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjU3OWQxZGJkLWE1NGYtNDE4MS1iOTMzLWY1NGRhNWIwZTc3OSJ9.eyJpc3MiOiJodHRwczovL2ZpcmUtbWFwLXN5c3RlbS1kNGY3cnc4d2JkMDBlNWY1LmFwLXNoYW5naGFpLnRjYi1hcGkudGVuY2VudGNsb3VkYXBpLmNvbSIsInN1YiI6ImFub24iLCJhdWQiOiJmaXJlLW1hcC1zeXN0ZW0tZDRmN3J3OHdiZDAwZTVmNSIsImV4cCI6NDA5MjM4NjU4NSwiaWF0IjoxNzg4NzAzMzg1LCJub25jZSI6Ik1CQTVQbEFpVEplbEEweWV4RFJRZ2ciLCJhdF9oYXNoIjoiTUJBNVBsQWlUSmVsQTB5ZXhEUlFnZyIsIm5hbWUiOiJBbm9ueW1vdXMiLCJzY29wZSI6ImFub255bW91cyIsInByb2plY3RfaWQiOiJmaXJlLW1hcC1zeXN0ZW0tZDRmN3J3OHdiZDAwZTVmNSIsIm1ldGEiOnsicGxhdGZvcm0iOiJQdWJsaXNoYWJsZUtleSJ9LCJyb2xlIjoiYW5vbiIsImlzX2Fub255bW91cyI6dHJ1ZSwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiYW5vbnltb3VzIiwicHJvdmlkZXJzIjpbImFub255bW91cyJdfSwidXNlcl9tZXRhZGF0YSI6eyJuYW1lIjoiQW5vbnltb3VzIn0sInVzZXJfdHlwZSI6IiIsImNsaWVudF90eXBlIjoiY2xpZW50X3VzZXIiLCJpc19zeXN0ZW1fYWRtaW4iOmZhbHNlfQ.OtHsyA9lLX_iKfgouUrY6NXB3bjRq2UBgd-DRNnBDgs1GgxnfO0QSc42zIaTVfGSK6738k_EUd27WLNiw4AXCRSBTLFJmyG3EP8Pt7Be4xzrRJefSBHBqCqceOCOGS3whtHgEBB_Pk9ckKse35aFTn3GpIFi9DZTmJfuv3MixGyqbS4snhQVeb7du1U6rDP9coh6KHIQ1u2cmG4oHJNGReAMoncaZgnQMD_ptB8l3SbIlh2yrxav4tg7jh1QTF-SqXfZjXBpgLJ7okPMX99b9lbpYsqnoulxsibSps1qVsJVAxGYk_eljqZjZM4SBH0WvY8DY4Xvz6nUKkuFPBZ8QA';
+const supabaseClient = createTCBClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 当前登录的巡检员
-let currentInspector = null;
+// 当前用户
+let currentUser = null;
+let currentRole = null;
+let currentOrderId = null;
+
+// 角色名称映射
+const roleNames = { inspector: '巡检员', repairer: '维修员', admin: '管理员' };
 
 // 简单的密码编码（base64）
 function encodePassword(pwd) {
@@ -293,14 +372,23 @@ function encodePassword(pwd) {
 // 从云端获取巡检员列表
 async function getInspectors() {
   try {
-    const { data, error } = await supabaseClient
-      .from('inspectors')
-      .select('*');
+    const { data, error } = await supabaseClient.from('inspectors').select('*');
     if (error) return [];
     return data || [];
-  } catch (e) {
-    return [];
+  } catch (e) { return []; }
+}
+
+// 解析角色数组（兼容PostgreSQL返回的字符串格式和JS数组格式）
+function parseRoles(roles) {
+  if (!roles) return ['inspector'];
+  if (Array.isArray(roles)) return roles;
+  if (typeof roles === 'string') {
+    // 处理 "{inspector,repairer}" 这种PostgreSQL数组字符串格式
+    const str = roles.replace(/^\{|\}$/g, '').trim();
+    if (!str) return ['inspector'];
+    return str.split(',').map(r => r.trim().replace(/^"|"$/g, ''));
   }
+  return ['inspector'];
 }
 
 // 登录
@@ -308,29 +396,22 @@ async function doLogin() {
   const id = document.getElementById('login-id').value.trim();
   const password = document.getElementById('login-password').value;
   const errorEl = document.getElementById('login-error');
-  
-  if (!id || !password) {
-    errorEl.innerText = '请输入工号和密码';
-    return;
-  }
-  
+  if (!id || !password) { errorEl.innerText = '请输入工号和密码'; return; }
   errorEl.innerText = '登录中...';
-  
   const inspectors = await getInspectors();
   const encodedPwd = encodePassword(password);
   const inspector = inspectors.find(i => i.id === id && i.password === encodedPwd);
-  
   if (inspector) {
-    currentInspector = inspector;
+    // 解析角色数组
+    inspector.roles = parseRoles(inspector.roles);
+    currentUser = inspector;
+    // 保存人员角色信息
     localStorage.setItem('firemap_inspector', JSON.stringify({
-      id: inspector.id,
-      name: inspector.name,
-      loginTime: Date.now()
+      id: inspector.id, name: inspector.name, roles: inspector.roles, loginTime: Date.now()
     }));
-    showMainContent();
+    document.getElementById('login-overlay').style.display = 'none';
     errorEl.innerText = '';
-    // 登录后重新初始化
-    init();
+    showRoleSelect();
   } else {
     errorEl.innerText = '工号或密码错误';
   }
@@ -343,7 +424,7 @@ function checkLogin() {
     if (saved) {
       const data = JSON.parse(saved);
       if (Date.now() - data.loginTime < 7 * 24 * 60 * 60 * 1000) {
-        currentInspector = data;
+        currentUser = data;
         return true;
       }
     }
@@ -351,141 +432,195 @@ function checkLogin() {
   return false;
 }
 
+// 显示角色选择（根据人员拥有的角色自动判断）
+function showRoleSelect() {
+  document.getElementById('user-name').innerText = currentUser.name;
+
+  // 获取人员拥有的角色（确保是数组）
+  const userRoles = parseRoles(currentUser.roles);
+  // 角色映射：acceptor 映射到 admin（管理员界面有验收功能）
+  const mappedRoles = userRoles.map(r => {
+    if (r === 'acceptor') return 'admin';
+    return r;
+  }).filter(r => ['inspector','repairer','admin'].includes(r));
+  const uniqueRoles = [...new Set(mappedRoles)];
+
+  // 如果没有有效角色，默认给巡检员
+  if (uniqueRoles.length === 0) {
+    uniqueRoles.push('inspector');
+  }
+
+  // 如果只有一个角色，直接进入对应界面
+  if (uniqueRoles.length === 1) {
+    currentRole = uniqueRoles[0];
+    localStorage.setItem('firemap_role', currentRole);
+    document.getElementById('role-overlay').style.display = 'none';
+    showMainContent();
+    initByRole();
+    return;
+  }
+
+  // 有多个角色，显示角色选择界面（只显示该人员拥有的角色）
+  document.querySelectorAll('.role-card').forEach(c => {
+    const role = c.getAttribute('data-role');
+    if (uniqueRoles.includes(role)) {
+      c.style.display = 'flex';
+    } else {
+      c.style.display = 'none';
+    }
+    c.classList.remove('selected');
+  });
+
+  // 重置选择状态
+  currentRole = null;
+  document.getElementById('role-confirm-btn').disabled = true;
+
+  // 检查是否有保存的角色
+  const savedRole = localStorage.getItem('firemap_role');
+  if (savedRole && uniqueRoles.includes(savedRole)) {
+    currentRole = savedRole;
+    document.getElementById('role-overlay').style.display = 'none';
+    showMainContent();
+    initByRole();
+  } else {
+    localStorage.removeItem('firemap_role');
+    document.getElementById('role-overlay').style.display = 'flex';
+  }
+}
+
+// 选择角色
+function selectRole(role) {
+  currentRole = role;
+  document.querySelectorAll('.role-card').forEach(c => c.classList.remove('selected'));
+  document.querySelector(`.role-card[data-role="${role}"]`).classList.add('selected');
+  document.getElementById('role-confirm-btn').disabled = false;
+}
+
+// 确认角色
+function confirmRole() {
+  if (!currentRole) return;
+
+  // 安全验证：确认选择的角色是用户拥有的
+  const userRoles = parseRoles(currentUser.roles);
+  const mappedRoles = userRoles.map(r => r === 'acceptor' ? 'admin' : r)
+    .filter(r => ['inspector','repairer','admin'].includes(r));
+  if (!mappedRoles.includes(currentRole)) {
+    alert('您没有该角色的权限');
+    return;
+  }
+
+  localStorage.setItem('firemap_role', currentRole);
+  document.getElementById('role-overlay').style.display = 'none';
+  showMainContent();
+  initByRole();
+}
+
+// 切换角色（只能切换到自己拥有的角色）
+function switchRole() {
+  // 获取当前用户拥有的角色
+  const userRoles = parseRoles(currentUser.roles);
+  const mappedRoles = userRoles.map(r => r === 'acceptor' ? 'admin' : r)
+    .filter(r => ['inspector','repairer','admin'].includes(r));
+  const uniqueRoles = [...new Set(mappedRoles)];
+
+  // 如果只有一个角色，不允许切换
+  if (uniqueRoles.length <= 1) {
+    alert('您只有一个角色，无需切换');
+    return;
+  }
+
+  localStorage.removeItem('firemap_role');
+  currentRole = null;
+  document.getElementById('inspector-view').style.display = 'none';
+  document.getElementById('repairer-view').style.display = 'none';
+  document.getElementById('admin-view').style.display = 'none';
+
+  // 只显示该用户拥有的角色选项
+  document.querySelectorAll('.role-card').forEach(c => {
+    const role = c.getAttribute('data-role');
+    if (uniqueRoles.includes(role)) {
+      c.style.display = 'flex';
+    } else {
+      c.style.display = 'none';
+    }
+    c.classList.remove('selected');
+  });
+
+  document.getElementById('role-confirm-btn').disabled = true;
+  document.getElementById('role-overlay').style.display = 'flex';
+}
+
 // 显示主内容
 function showMainContent() {
-  document.getElementById('login-overlay').style.display = 'none';
   document.getElementById('main-content').style.display = 'block';
-  if (currentInspector) {
-    const personInput = document.getElementById('inspect-person');
-    if (personInput) {
-      personInput.value = currentInspector.name;
-      personInput.readOnly = true;
-      personInput.style.background = '#f5f5f5';
-    }
-  }
+  document.getElementById('user-name').innerText = currentUser.name;
+  document.getElementById('user-role').innerText = roleNames[currentRole] || '';
+
+  // 根据用户角色数量显示/隐藏切换角色按钮
+  const userRoles = parseRoles(currentUser.roles);
+  const mappedRoles = userRoles.map(r => r === 'acceptor' ? 'admin' : r)
+    .filter(r => ['inspector','repairer','admin'].includes(r));
+  const uniqueRoles = [...new Set(mappedRoles)];
+  const switchBtns = document.querySelectorAll('.switch-role');
+  switchBtns.forEach(btn => {
+    btn.style.display = uniqueRoles.length > 1 ? 'inline-block' : 'none';
+  });
 }
 
-// 从云端获取楼层设备列表
-async function getFloorDevicesFromCloud(floorId) {
-  try {
-    const { data, error } = await supabaseClient
-      .from('devices')
-      .select('*')
-      .eq('floor_id', floorId);
-    if (error) {
-      console.error('从云端获取楼层设备失败:', error);
-      return [];
-    }
-    return data ? data.map(d => d.device_data) : [];
-  } catch (e) {
-    console.error('从云端获取楼层设备异常:', e);
-    return [];
-  }
+// 根据角色初始化
+function initByRole() {
+  document.getElementById('inspector-view').style.display = currentRole === 'inspector' ? 'block' : 'none';
+  document.getElementById('repairer-view').style.display = currentRole === 'repairer' ? 'block' : 'none';
+  document.getElementById('admin-view').style.display = currentRole === 'admin' ? 'block' : 'none';
+  if (currentRole === 'inspector') initInspector();
+  else if (currentRole === 'repairer') initRepairer();
+  else if (currentRole === 'admin') initAdmin();
 }
 
-// 从云端获取楼层信息
-async function getFloorFromCloud(floorId) {
-  try {
-    const { data, error } = await supabaseClient
-      .from('floors')
-      .select('*')
-      .eq('id', floorId)
-      .single();
-    if (error) return null;
-    return data;
-  } catch (e) {
-    return null;
-  }
+// 管理员切换到巡检
+function switchToInspector() {
+  currentRole = 'inspector';
+  document.getElementById('user-role').innerText = '巡检员';
+  initByRole();
 }
 
-// 批量提交巡检记录到云端
-async function submitFloorInspectToCloud(records) {
-  if (!records || records.length === 0) return true;
-  try {
-    const logData = records.map(r => ({
-      id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
-      device_id: r.deviceId || '',
-      floor_id: r.floorId || '',
-      inspector: r.inspector || '',
-      result: r.result || '',
-      remark: r.remark || '',
-      inspect_date: r.inspectDate || new Date().toISOString().split('T')[0],
-      inspect_time: r.inspectTime || new Date().toTimeString().split(' ')[0],
-      source: 'floor_qrcode'
-    }));
-    const { error } = await supabaseClient.from('inspect_logs').insert(logData);
-    if (error) {
-      console.error('批量提交巡检记录失败:', error);
-      return false;
-    }
-    return true;
-  } catch (e) {
-    console.error('批量提交巡检记录异常:', e);
-    return false;
-  }
+// 管理员切换到维修
+function switchToRepairer() {
+  currentRole = 'repairer';
+  document.getElementById('user-role').innerText = '维修员';
+  initByRole();
 }
 
+// ========== 巡检员功能 ==========
 let devices = [];
-let results = {}; // {deviceId: "normal"|"fault"|"maintain"}
+let results = {};
 
 function getQueryParam(name) {
   return new URL(window.location.href).searchParams.get(name);
 }
 
-function decodeData(str) {
-  try { return JSON.parse(decodeURIComponent(escape(atob(str)))); } catch(e) { return null; }
-}
-
-async function init() {
-  // 先检查登录状态
-  if (!checkLogin()) {
-    document.getElementById('login-overlay').style.display = 'flex';
-    return;
-  }
-  showMainContent();
-  
+async function initInspector() {
   const floorId = getQueryParam("floorId");
-  const data = getQueryParam("data");
-  
   if (floorId) {
-    // 云端模式：从云端读取楼层设备
     document.getElementById("device-list").innerHTML = '<div class="empty">加载中...</div>';
-    
-    // 同时获取楼层信息和设备列表
     const [floorInfo, deviceList] = await Promise.all([
-      getFloorFromCloud(floorId),
-      getFloorDevicesFromCloud(floorId)
+      getFloorFromCloud(floorId), getFloorDevicesFromCloud(floorId)
     ]);
-    
-    const buildingName = floorInfo ? floorInfo.building_name : "";
-    const floorName = floorInfo ? floorInfo.floor_name : "未知楼层";
-    
-    document.getElementById("floor-title").innerText = buildingName + " - " + floorName;
+    let buildingName = "";
+    if (floorInfo && floorInfo.building_id) {
+      try {
+        const { data: buildingInfo } = await supabaseClient.from('buildings').select('*').eq('id', floorInfo.building_id).single();
+        if (buildingInfo) buildingName = buildingInfo.building_name || buildingInfo.building_data?.name || "";
+      } catch (e) {}
+    }
+    if (!buildingName && floorInfo) buildingName = floorInfo.floor_data?.buildingName || floorInfo.building_name || "";
+    const floorName = floorInfo ? (floorInfo.floor_data?.floorName || floorInfo.floor_name || "未知楼层") : "未知楼层";
+    document.getElementById("floor-title").innerText = buildingName ? (buildingName + " - " + floorName) : floorName;
     document.getElementById("floor-sub").innerText = "共 " + deviceList.length + " 个设备";
-    
     if (deviceList.length === 0) {
       document.getElementById("device-list").innerHTML = '<div class="empty">该楼层暂无设备</div>';
       return;
     }
-    
-    devices = deviceList;
-    renderDevices();
-    updateProgress();
-  } else if (data) {
-    // 兼容旧版：从URL参数读取
-    const floorData = decodeData(data);
-    if (!floorData) {
-      document.getElementById("device-list").innerHTML = '<div class="empty">无效的楼层巡检二维码</div>';
-      return;
-    }
-    
-    const buildingName = floorData.buildingName || floorData.b || "";
-    const floorName = floorData.floorName || floorData.f || "";
-    const deviceList = floorData.devices || floorData.d || [];
-    
-    document.getElementById("floor-title").innerText = buildingName + " - " + floorName;
-    document.getElementById("floor-sub").innerText = "共 " + deviceList.length + " 个设备";
-    
     devices = deviceList;
     renderDevices();
     updateProgress();
@@ -493,33 +628,56 @@ async function init() {
     document.getElementById("device-list").innerHTML = '<div class="empty">无效的楼层巡检二维码</div>';
   }
 }
-init();
 
-// 回车键登录
-document.getElementById('login-password').addEventListener('keypress', function(e) {
-  if (e.key === 'Enter') doLogin();
-});
-document.getElementById('login-id').addEventListener('keypress', function(e) {
-  if (e.key === 'Enter') document.getElementById('login-password').focus();
-});
+async function getFloorDevicesFromCloud(floorId) {
+  try {
+    const { data, error } = await supabaseClient.from('devices').select('*').eq('floor_id', floorId);
+    if (error) return [];
+    return data ? data.map(d => d.device_data) : [];
+  } catch (e) { return []; }
+}
+
+async function getFloorFromCloud(floorId) {
+  try {
+    const { data, error } = await supabaseClient.from('floors').select('*').eq('id', floorId).single();
+    if (error) return null;
+    return data;
+  } catch (e) { return null; }
+}
 
 function renderDevices() {
   const list = document.getElementById("device-list");
-  if (!devices.length) {
-    list.innerHTML = '<div class="empty">该楼层暂无设备</div>';
-    return;
-  }
+  if (!devices.length) { list.innerHTML = '<div class="empty">该楼层暂无设备</div>'; return; }
+  
+  // 先统计每个基础编号（去掉_副本后缀）出现的次数，用于自动加序号
+  const baseCodeCount = {};
+  devices.forEach(dev => {
+    let baseCode = (dev.code || "未编号").replace(/_副本\d*$/g, "").replace(/_副本$/g, "");
+    baseCodeCount[baseCode] = (baseCodeCount[baseCode] || 0) + 1;
+  });
+  
+  // 记录每个基础编号已经显示到第几个了
+  const codeIndex = {};
   
   let html = "";
   devices.forEach(dev => {
     const result = results[dev.id];
     const cardClass = result === "normal" ? "checked" : result === "fault" ? "fault" : result === "maintain" ? "maintain" : "";
+    
+    // 去掉编号中的"_副本"后缀，如果有重复则自动加序号
+    let deviceCode = dev.code || "未编号";
+    const baseCode = deviceCode.replace(/_副本\d*$/g, "").replace(/_副本$/g, "");
+    codeIndex[baseCode] = (codeIndex[baseCode] || 0) + 1;
+    if (baseCodeCount[baseCode] > 1) {
+      deviceCode = baseCode + "(" + codeIndex[baseCode] + ")";
+    } else {
+      deviceCode = baseCode;
+    }
+    
+    const deviceLocation = dev.location || dev.position || "位置未设置";
     html += '<div class="device-card ' + cardClass + '">';
-    html += '<div class="device-header">';
-    html += '<span class="device-name">' + dev.type + '</span>';
-    html += '<span class="device-code">' + (dev.code || "未编号") + '</span>';
-    html += '</div>';
-    html += '<div class="device-info">' + (dev.location || "位置未设置") + '</div>';
+    html += '<div class="device-name">' + (dev.type || dev.deviceType || "未命名设备") + '</div>';
+    html += '<div class="device-meta"><span class="meta-item">📋 ' + deviceCode + '</span><span class="meta-item">📍 ' + deviceLocation + '</span></div>';
     html += '<div class="result-buttons">';
     html += '<div class="result-btn ' + (result === "normal" ? "active-normal" : "") + '" onclick="setResult(\'' + dev.id + '\',\'normal\')">✅正常</div>';
     html += '<div class="result-btn ' + (result === "fault" ? "active-fault" : "") + '" onclick="setResult(\'' + dev.id + '\',\'fault\')">⚠️故障</div>';
@@ -530,19 +688,14 @@ function renderDevices() {
 }
 
 function setResult(deviceId, result) {
-  if (results[deviceId] === result) {
-    delete results[deviceId];
-  } else {
-    results[deviceId] = result;
-  }
+  if (results[deviceId] === result) delete results[deviceId];
+  else results[deviceId] = result;
   renderDevices();
   updateProgress();
 }
 
 function markAllNormal() {
-  devices.forEach(dev => {
-    results[dev.id] = "normal";
-  });
+  devices.forEach(dev => { results[dev.id] = "normal"; });
   renderDevices();
   updateProgress();
 }
@@ -556,76 +709,465 @@ function updateProgress() {
 }
 
 async function submitInspection() {
-  // 验证登录状态
-  if (!currentInspector) {
-    alert('请先登录');
-    return;
-  }
-  
-  const person = currentInspector.name;
-  const inspectorId = currentInspector.id;
-  
+  if (!currentUser) { alert('请先登录'); return; }
   const checked = Object.keys(results).length;
   if (checked === 0) { alert("请至少巡检一个设备"); return; }
-  
   const now = new Date();
   const date = now.getFullYear() + "-" + String(now.getMonth()+1).padStart(2,"0") + "-" + String(now.getDate()).padStart(2,"0") + " " + String(now.getHours()).padStart(2,"0") + ":" + String(now.getMinutes()).padStart(2,"0");
-  
   const floorId = getQueryParam("floorId");
   const records = [];
-  
   let faultCount = 0, maintainCount = 0;
-  
   for (const [deviceId, result] of Object.entries(results)) {
     const resultText = result === "normal" ? "正常" : result === "fault" ? "故障" : "需维保";
     if (result === "fault") faultCount++;
     if (result === "maintain") maintainCount++;
-    
     records.push({
-      deviceId,
-      floorId: floorId || '',
-      inspector: person,
-      inspectorId: inspectorId,
-      result: resultText,
-      remark: "楼层批量巡检",
-      inspectDate: date.split(" ")[0],
-      inspectTime: date.split(" ")[1]
+      deviceId, floorId: floorId || '', inspector: currentUser.name, inspectorId: currentUser.id,
+      result: resultText, remark: "楼层批量巡检", inspectDate: date.split(" ")[0], inspectTime: date.split(" ")[1]
     });
   }
-  
-  // 提交到云端
   await submitFloorInspectToCloud(records);
-  
-  // 同时保存到本地待同步队列（兼容旧版）
   const pending = JSON.parse(localStorage.getItem("firemap_inspect_pending") || "[]");
   records.forEach(r => {
-    pending.push({
-      deviceId: r.deviceId,
-      person: r.inspector,
-      result: r.result,
-      remark: r.remark,
-      date,
-      timestamp: now.getTime(),
-      synced: true
-    });
+    pending.push({ deviceId: r.deviceId, person: r.inspector, result: r.result, remark: r.remark, date, timestamp: now.getTime(), synced: true });
   });
   localStorage.setItem("firemap_inspect_pending", JSON.stringify(pending));
-  
-  // 显示成功
   let msg = "已巡检 " + checked + " 个设备";
   if (faultCount > 0) msg += "，其中 " + faultCount + " 个故障";
   if (maintainCount > 0) msg += "，" + maintainCount + " 个需维保";
+  document.getElementById("success-title").innerText = "巡检完成";
   document.getElementById("success-msg").innerText = msg;
   document.getElementById("success-overlay").style.display = "flex";
 }
 
+async function submitFloorInspectToCloud(records) {
+  if (!records || records.length === 0) return true;
+  try {
+    const logData = records.map(r => ({
+      id: 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+      device_id: r.deviceId || '', floor_id: r.floorId || '', inspector_id: r.inspectorId || '',
+      inspector_name: r.inspector || '', status: r.result || '', remark: r.remark || '',
+      inspect_date: r.inspectDate || new Date().toISOString().split('T')[0],
+      inspect_time: r.inspectTime || new Date().toTimeString().split(' ')[0], source: 'floor_qrcode'
+    }));
+    const { error } = await supabaseClient.from('inspect_logs').insert(logData);
+    if (error) { console.error('批量提交巡检记录失败:', error); return false; }
+    return true;
+  } catch (e) { console.error('批量提交巡检记录异常:', e); return false; }
+}
+
+// ========== 维修员功能 ==========
+async function initRepairer() {
+  document.getElementById('repair-sub').innerText = '加载工单中...';
+  const orders = await getWorkOrders();
+  const floorId = getQueryParam("floorId");
+  
+  // ===== 调试信息（在浏览器控制台查看）=====
+  console.log('===== 维修员工单调试 =====');
+  console.log('当前登录用户:', currentUser);
+  console.log('当前用户工号:', currentUser?.id, '姓名:', currentUser?.name);
+  console.log('URL参数 floorId:', floorId);
+  console.log('云端工单总数:', orders.length);
+  console.log('所有工单详情:', orders.map(o => ({
+    id: o.id,
+    title: o.title,
+    status: o.status,
+    assignee: o.assignee,
+    assignee_id: o.assignee_id,
+    floor_id: o.floor_id,
+    snapshot_floor_id: o.snapshot_floor_id
+  })));
+  // ========================================
+
+  // 匹配是否派给我（优先用工号匹配，最可靠；其次用姓名匹配）
+  const isMine = (o) => {
+    // 1. 优先用工号匹配（assignee_id === currentUser.id）
+    if (o.assignee_id && currentUser.id && String(o.assignee_id) === String(currentUser.id)) {
+      return true;
+    }
+    // 2. 其次用姓名匹配（兼容各种格式）
+    if (o.assignee && currentUser.name) {
+      const assignee = String(o.assignee).trim();
+      const name = String(currentUser.name).trim();
+      if (assignee === name || assignee.includes(name) || name.includes(assignee)) {
+        return true;
+      }
+    }
+    // 3. 最后用工号包含匹配
+    if (o.assignee && currentUser.id) {
+      if (String(o.assignee).includes(String(currentUser.id))) {
+        return true;
+      }
+    }
+    return false;
+  };
+
+  // 派给我的工单（进行中或待验收，不受楼层限制）
+  const myOrders = orders.filter(o => isMine(o) && (o.status === 'processing' || o.status === 'completed'));
+
+  // 待派单的工单（可以抢单，按楼层过滤）
+  let pendingOrders = orders.filter(o => o.status === 'pending' || !o.assignee);
+  if (floorId) {
+    pendingOrders = pendingOrders.filter(o => o.floor_id === floorId || o.snapshot_floor_id === floorId || !o.floor_id);
+  }
+
+  // ===== 调试信息 =====
+  console.log('匹配结果:');
+  console.log('  我的工单数量:', myOrders.length, myOrders.map(o => o.id + '|' + o.title + '|' + o.status));
+  console.log('  待派单数量:', pendingOrders.length, pendingOrders.map(o => o.id + '|' + o.title));
+  console.log('  未匹配的工单:', orders.filter(o => !isMine(o) && o.status !== 'pending' && o.assignee).map(o => o.id + '|assignee=' + o.assignee + '|assignee_id=' + o.assignee_id + '|status=' + o.status));
+  // ====================
+
+  const sortedOrders = [...myOrders, ...pendingOrders];
+  document.getElementById('repair-sub').innerText = '我的工单 ' + myOrders.length + ' 个 | 待派单 ' + pendingOrders.length + ' 个';
+  renderOrders(sortedOrders);
+}
+
+async function getWorkOrders() {
+  try {
+    // 腾讯云TCB的supabase客户端不支持.order()链式调用，改用JS排序
+    const { data, error } = await supabaseClient.from('work_orders').select('*');
+    if (error) { console.error('获取工单失败:', error); return []; }
+    const sorted = (data || []).sort((a, b) => new Date(b.created_at || b.createdAt) - new Date(a.created_at || a.createdAt));
+    return sorted;
+  } catch (e) {
+    console.error('获取工单异常:', e);
+    // 降级：从localStorage读取
+    const local = JSON.parse(localStorage.getItem('firemap_work_orders') || '[]');
+    return local;
+  }
+}
+
+function renderOrders(orders) {
+  const list = document.getElementById('order-list');
+  if (!orders.length) {
+    list.innerHTML = '<div class="empty">暂无工单</div>';
+    return;
+  }
+  const statusMap = {
+    pending: { text: '待派单', class: 'status-pending' },
+    processing: { text: '进行中', class: 'status-processing' },
+    completed: { text: '待验收', class: 'status-completed' },
+    accepted: { text: '已验收', class: 'status-accepted' }
+  };
+  let html = '';
+  orders.forEach(o => {
+    const s = statusMap[o.status] || { text: o.status, class: 'status-pending' };
+    // 匹配是否派给我（优先用工号匹配，最可靠；其次用姓名匹配）
+    const isMine = (() => {
+      if (o.assignee_id && currentUser.id && String(o.assignee_id) === String(currentUser.id)) return true;
+      if (o.assignee && currentUser.name) {
+        const assignee = String(o.assignee).trim();
+        const name = String(currentUser.name).trim();
+        if (assignee === name || assignee.includes(name) || name.includes(assignee)) return true;
+      }
+      if (o.assignee && currentUser.id && String(o.assignee).includes(String(currentUser.id))) return true;
+      return false;
+    })();
+    html += `<div class="order-card ${o.status}">`;
+    html += `<div class="order-header">`;
+    html += `<span class="order-title">${o.title || '维修工单'}${isMine ? ' <span style="font-size:10px;background:#dbeafe;color:#1e40af;padding:1px 6px;border-radius:8px">我的</span>' : ''}</span>`;
+    html += `<span class="order-status ${s.class}">${s.text}</span>`;
+    html += `</div>`;
+    html += `<div class="order-info">`;
+    html += `<div>🏢 建筑：${o.snapshot_building_name || o.building_name || '-'}</div>`;
+    html += `<div>🏬 楼层：${o.snapshot_floor_name || o.floor_name || '-'}</div>`;
+    html += `<div>🔧 设备：${o.snapshot_device_type || ''} ${o.snapshot_device_code || o.device_code || ''}</div>`;
+    html += `<div>👤 维修人：${o.assignee || '未分配'} | 📅 ${(o.created_at || '').split('T')[0]}</div>`;
+    html += `</div>`;
+    if (o.description) html += `<div class="order-desc">📝 ${o.description}</div>`;
+    if (o.fix_description) html += `<div class="order-desc" style="background:#f0fdf4;color:#166534">🔧 维修说明：${o.fix_description}</div>`;
+    html += `<div class="order-actions">`;
+    if (o.status === 'processing' && isMine) {
+      html += `<button class="order-btn repair" onclick="openRepairModal('${o.id}')">🔧 维修完毕</button>`;
+    }
+    if (o.status === 'pending' && !o.assignee) {
+      html += `<button class="order-btn repair" onclick="grabOrder('${o.id}')">✋ 我来维修</button>`;
+    }
+    if (o.status === 'completed') {
+      html += `<span style="font-size:12px;color:#3b82f6;padding:8px 12px">⏳ 待验收员验收</span>`;
+    }
+    html += `<button class="order-btn view" onclick="locateDevice('${o.id}')">📍 定位</button>`;
+    html += `</div></div>`;
+  });
+  list.innerHTML = html;
+}
+
+// 抢单（维修员主动接单）
+async function grabOrder(orderId) {
+  try {
+    const { error } = await supabaseClient.from('work_orders').update({
+      status: 'processing',
+      assignee: currentUser.name,
+      assigned_by: currentUser.name,
+      assigned_at: new Date().toISOString()
+    }).eq('id', orderId);
+    if (error) throw error;
+    showToast('接单成功！');
+    initRepairer();
+  } catch (e) {
+    alert('接单失败：' + (e.message || e));
+  }
+}
+
+// 打开维修说明弹窗
+function openRepairModal(orderId) {
+  currentOrderId = orderId;
+  document.getElementById('repair-desc').value = '';
+  document.getElementById('repair-modal').style.display = 'flex';
+}
+
+function closeRepairModal() {
+  document.getElementById('repair-modal').style.display = 'none';
+  currentOrderId = null;
+}
+
+// 确认维修完毕
+async function confirmRepair() {
+  const desc = document.getElementById('repair-desc').value.trim();
+  if (!desc) { alert('请输入维修说明'); return; }
+  if (!currentOrderId) return;
+  try {
+    const { error } = await supabaseClient.from('work_orders').update({
+      status: 'completed', fix_description: desc, completed_at: new Date().toISOString()
+    }).eq('id', currentOrderId);
+    if (error) throw error;
+  } catch (e) {
+    // 降级：保存到localStorage
+    const local = JSON.parse(localStorage.getItem('firemap_work_orders') || '[]');
+    const idx = local.findIndex(o => o.id === currentOrderId);
+    if (idx >= 0) {
+      local[idx].status = 'completed';
+      local[idx].fix_description = desc;
+      local[idx].completed_at = new Date().toISOString();
+      localStorage.setItem('firemap_work_orders', JSON.stringify(local));
+    }
+  }
+  closeRepairModal();
+  document.getElementById("success-title").innerText = "维修完毕";
+  document.getElementById("success-msg").innerText = "工单已更新为待验收状态";
+  document.getElementById("success-overlay").style.display = "flex";
+  initRepairer();
+}
+
+// 验收完毕
+async function acceptOrder(orderId) {
+  if (!confirm('确认验收完毕？验收后工单关闭。')) return;
+  try {
+    const { error } = await supabaseClient.from('work_orders').update({
+      status: 'accepted', accepted_at: new Date().toISOString()
+    }).eq('id', orderId);
+    if (error) throw error;
+  } catch (e) {
+    const local = JSON.parse(localStorage.getItem('firemap_work_orders') || '[]');
+    const idx = local.findIndex(o => o.id === orderId);
+    if (idx >= 0) {
+      local[idx].status = 'accepted';
+      local[idx].accepted_at = new Date().toISOString();
+      localStorage.setItem('firemap_work_orders', JSON.stringify(local));
+    }
+  }
+  document.getElementById("success-title").innerText = "验收完毕";
+  document.getElementById("success-msg").innerText = "工单已验收完成";
+  document.getElementById("success-overlay").style.display = "flex";
+  initRepairer();
+}
+
+// 查看工单详情
+function viewOrderDetail(orderId) {
+  alert('工单详情功能请在主系统中查看');
+}
+
+// 定位设备位置
+async function locateDevice(orderId) {
+  const orders = await getWorkOrders();
+  const order = orders.find(o => o.id === orderId);
+  if (!order) { alert('工单不存在'); return; }
+  const building = order.snapshot_building_name || order.building_name || '未知建筑';
+  const floor = order.snapshot_floor_name || order.floor_name || '未知楼层';
+  const deviceType = order.snapshot_device_type || '';
+  const deviceCode = order.snapshot_device_code || order.device_code || '';
+  const location = order.snapshot_location || order.location || '';
+  // 尝试从云端获取设备详细位置
+  let deviceLocation = location;
+  if (order.device_id) {
+    try {
+      const { data } = await supabaseClient.from('devices').select('*').eq('id', order.device_id).single();
+      if (data && data.device_data) {
+        deviceLocation = data.device_data.location || data.device_data.position || location;
+      }
+    } catch (e) {}
+  }
+  const msg = `📍 设备定位信息
+
+🏢 建筑：${building}
+🏬 楼层：${floor}
+🔧 设备：${deviceType} ${deviceCode}
+${deviceLocation ? '📍 具体位置：' + deviceLocation : ''}
+
+请前往上述位置进行维修。`;
+  alert(msg);
+}
+
+// ========== 管理员功能 ==========
+function initAdmin() {
+  document.getElementById('admin-sub').innerText = '选择功能进入';
+  document.getElementById('admin-extra').innerHTML = '';
+}
+
+// 显示待验收工单（验收员界面）
+async function showPendingAcceptance() {
+  document.getElementById('admin-sub').innerText = '加载中...';
+  const orders = await getWorkOrders();
+  // 只显示待验收的工单（status = completed）
+  const pendingOrders = orders.filter(o => o.status === 'completed');
+  document.getElementById('admin-sub').innerText = '待验收工单 ' + pendingOrders.length + ' 个';
+
+  if (!pendingOrders.length) {
+    document.getElementById('admin-extra').innerHTML = '<div style="text-align:center;padding:40px;color:#999">暂无待验收工单</div>';
+    return;
+  }
+
+  let html = '<h3 style="margin:20px 0 10px;color:#1f2937">📋 待验收工单</h3>';
+  pendingOrders.forEach(o => {
+    html += '<div class="order-card completed">';
+    html += '<div class="order-header">';
+    html += '<span class="order-title">' + (o.title || '维修工单') + '</span>';
+    html += '<span class="order-status status-completed">待验收</span>';
+    html += '</div>';
+    html += '<div class="order-info">';
+    html += '<div>🏢 建筑：' + (o.snapshot_building_name || o.building_name || '-') + '</div>';
+    html += '<div>🏬 楼层：' + (o.snapshot_floor_name || o.floor_name || '-') + '</div>';
+    html += '<div>🔧 设备：' + (o.snapshot_device_type || '') + ' ' + (o.snapshot_device_code || o.device_code || '') + '</div>';
+    html += '<div>👤 维修人：' + (o.assignee || '未分配') + ' | 📅 ' + (o.completed_at || o.created_at || '').split('T')[0] + '</div>';
+    html += '</div>';
+    if (o.description) html += '<div class="order-desc">📝 故障：' + o.description + '</div>';
+    if (o.fix_description) html += '<div class="order-desc" style="background:#f0fdf4;color:#166534">🔧 维修说明：' + o.fix_description + '</div>';
+    if (o.cost) html += '<div class="order-desc" style="background:#fffbeb;color:#92400e">💰 维修费用：¥' + o.cost + '</div>';
+    html += '<div class="order-actions">';
+    html += '<button class="order-btn accept" onclick="openAcceptModal(\'' + o.id + '\')">✅ 验收</button>';
+    html += '<button class="order-btn view" onclick="locateDevice(\'' + o.id + '\')">📍 定位</button>';
+    html += '</div></div>';
+  });
+  document.getElementById('admin-extra').innerHTML = html;
+}
+
+// 打开验收弹窗
+function openAcceptModal(orderId) {
+  currentOrderId = orderId;
+  document.getElementById('accept-desc').value = '';
+  document.getElementById('accept-modal').style.display = 'flex';
+}
+
+// 关闭验收弹窗
+function closeAcceptModal() {
+  document.getElementById('accept-modal').style.display = 'none';
+  currentOrderId = null;
+}
+
+// 确认验收完毕（验收员界面）
+async function confirmAccept() {
+  const remark = document.getElementById('accept-desc').value.trim();
+  if (!currentOrderId) return;
+  try {
+    // 先获取工单信息，拿到 device_id
+    let deviceId = null;
+    try {
+      const { data: orderData } = await supabaseClient.from('work_orders').select('device_id').eq('id', currentOrderId).single();
+      if (orderData) deviceId = orderData.device_id;
+    } catch(e) {}
+    
+    const updateData = {
+      status: 'accepted',
+      accepted_at: new Date().toISOString(),
+      accepted_by: currentUser.name || currentUser.id || '验收员'
+    };
+    if (remark) updateData.accept_remark = remark;
+    const { error } = await supabaseClient.from('work_orders').update(updateData).eq('id', currentOrderId);
+    if (error) throw error;
+    
+    // 闭环：验收通过后，自动更新设备状态为正常
+    if (deviceId) {
+      try {
+        await supabaseClient.from('devices').update({ status: '正常' }).eq('id', deviceId);
+      } catch(e) { console.warn('更新设备状态失败:', e); }
+    }
+  } catch (e) {
+    // 降级：保存到localStorage
+    const local = JSON.parse(localStorage.getItem('firemap_work_orders') || '[]');
+    const idx = local.findIndex(o => o.id === currentOrderId);
+    if (idx >= 0) {
+      local[idx].status = 'accepted';
+      local[idx].accepted_at = new Date().toISOString();
+      if (remark) local[idx].accept_remark = remark;
+      localStorage.setItem('firemap_work_orders', JSON.stringify(local));
+    }
+  }
+  closeAcceptModal();
+  document.getElementById("success-title").innerText = "验收完毕";
+  document.getElementById("success-msg").innerText = "工单已验收完成，设备状态已恢复正常";
+  document.getElementById("success-overlay").style.display = "flex";
+  showPendingAcceptance();
+}
+
+// 显示设备列表
+async function showDeviceList() {
+  const floorId = getQueryParam("floorId");
+  if (!floorId) { alert('无效的楼层二维码'); return; }
+  const devices = await getFloorDevicesFromCloud(floorId);
+  const floorInfo = await getFloorFromCloud(floorId);
+  let html = '<h3 style="margin:20px 0 10px;color:#1f2937">📋 设备列表（' + devices.length + '个）</h3>';
+  devices.forEach(dev => {
+    html += '<div class="device-card">';
+    html += '<div class="device-header">';
+    html += '<span class="device-name">' + (dev.type || dev.deviceType || '未命名') + '</span>';
+    html += '<span class="device-code">' + (dev.code || '未编号') + '</span>';
+    html += '</div>';
+    html += '<div class="device-info">' + (dev.location || '位置未设置') + ' | 状态：' + (dev.status || '正常') + '</div>';
+    html += '</div>';
+  });
+  document.getElementById('admin-extra').innerHTML = html;
+}
+
+// 显示统计
+async function showStats() {
+  const floorId = getQueryParam("floorId");
+  const devices = floorId ? await getFloorDevicesFromCloud(floorId) : [];
+  const orders = await getWorkOrders();
+  const floorOrders = floorId ? orders.filter(o => o.floor_id === floorId || o.snapshot_floor_id === floorId) : orders;
+  let html = '<h3 style="margin:20px 0 10px;color:#1f2937">📊 统计概览</h3>';
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">';
+  html += '<div style="background:#fff;padding:16px;border-radius:10px;text-align:center"><div style="font-size:24px;font-weight:bold;color:#3b82f6">' + devices.length + '</div><div style="font-size:12px;color:#666">设备总数</div></div>';
+  html += '<div style="background:#fff;padding:16px;border-radius:10px;text-align:center"><div style="font-size:24px;font-weight:bold;color:#ef4444">' + floorOrders.filter(o => o.status === 'pending').length + '</div><div style="font-size:12px;color:#666">待派单</div></div>';
+  html += '<div style="background:#fff;padding:16px;border-radius:10px;text-align:center"><div style="font-size:24px;font-weight:bold;color:#f59e0b">' + floorOrders.filter(o => o.status === 'processing').length + '</div><div style="font-size:12px;color:#666">进行中</div></div>';
+  html += '<div style="background:#fff;padding:16px;border-radius:10px;text-align:center"><div style="font-size:24px;font-weight:bold;color:#10b981">' + floorOrders.filter(o => o.status === 'accepted').length + '</div><div style="font-size:12px;color:#666">已完成</div></div>';
+  html += '</div>';
+  document.getElementById('admin-extra').innerHTML = html;
+}
+
+// ========== 通用 ==========
 function closeSuccess() {
   document.getElementById("success-overlay").style.display = "none";
-  // 清空结果
   results = {};
-  renderDevices();
-  updateProgress();
+  if (currentRole === 'inspector') { renderDevices(); updateProgress(); }
 }
+
+// 初始化
+function init() {
+  if (!checkLogin()) {
+    document.getElementById('login-overlay').style.display = 'flex';
+    return;
+  }
+  showRoleSelect();
+}
+
+// 回车键登录
+document.getElementById('login-password').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') doLogin();
+});
+document.getElementById('login-id').addEventListener('keypress', function(e) {
+  if (e.key === 'Enter') document.getElementById('login-password').focus();
+});
 
 init();
 </script>

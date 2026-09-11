@@ -1,0 +1,1825 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>消防设施数字化管理系统</title>
+<link rel="stylesheet" href="lib/leaflet.css"/>
+<link rel="stylesheet" href="css/style.css"/>
+</head>
+<body>
+<div id="toast" class="toast hidden"></div>
+<div class="undo-bar" id="undo-bar"><span class="undo-text" id="undo-text">已删除</span><button class="undo-btn" onclick="undoLast()">↩ 撤销</button><button class="undo-close" onclick="hideUndoBar()">✕</button></div>
+
+<!-- 登录/注册界面 -->
+<div id="auth-screen" class="auth-screen">
+  <div class="auth-box">
+    <div class="auth-logo">🔥</div>
+    <h2 class="auth-title">消防设施数字化管理系统</h2>
+    <!-- 登录表单 -->
+    <div id="auth-login-form">
+      <div class="auth-field"><label>项目编码</label><input id="login-project-code" placeholder="请输入6位项目编码" onkeydown="if(event.key==='Enter')doLogin()" oninput="checkLoginProjectCode()" maxlength="8"/><div class="auth-hint" id="login-code-hint" style="display:none"></div></div>
+      <div class="auth-field"><label>用户名</label><input id="login-user" placeholder="请输入用户名" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+      <div class="auth-field"><label>密码</label><input id="login-pass" type="password" placeholder="请输入密码" onkeydown="if(event.key==='Enter')doLogin()"/></div>
+      <div class="auth-field"><label>登录身份</label>
+        <div class="auth-role-group">
+          <label class="auth-role-option"><input aria-label="login-role" type="radio" name="login-role" value="operator" checked onchange="loginRole='operator'"/> <span>操作员</span></label>
+          <label class="auth-role-option"><input aria-label="login-role" type="radio" name="login-role" value="admin" onchange="loginRole='admin'"/> <span>管理员</span></label>
+        </div>
+      </div>
+      <button class="auth-btn primary" onclick="doLogin()">登 录</button>
+      <div class="auth-switch">还没有账号？<a onclick="showAuthRegister()">立即注册</a></div>
+    </div>
+    <!-- 注册表单 -->
+    <div id="auth-register-form" style="display:none">
+      <div class="auth-field"><label>项目编码</label><input id="reg-project-code" placeholder="请输入项目编码" maxlength="8"/></div>
+      <div class="auth-field"><label>用户名</label><input id="reg-user" placeholder="3-20个字符" oninput="checkUsername()"/><div class="auth-hint" id="reg-user-hint" style="display:none"></div></div>
+      <div class="auth-field"><label>密码</label><input id="reg-pass" type="password" placeholder="至少6位" oninput="checkPassword()"/><div class="auth-hint" id="reg-pass-hint" style="display:none"></div></div>
+      <div class="auth-field"><label>确认密码</label><input id="reg-pass2" type="password" placeholder="再次输入密码" oninput="checkConfirmPassword()"/><div class="auth-hint" id="reg-pass2-hint" style="display:none"></div></div>
+      <div class="auth-field"><label>管理员邀请码（选填）</label><input id="reg-invite" type="password" placeholder="输入邀请码可注册为管理员，否则为操作员" oninput="checkInviteCode()"/></div>
+      <div class="auth-hint" id="reg-invite-hint">💡 不填邀请码默认为操作员；填写正确邀请码将注册为管理员</div>
+      <button class="auth-btn primary" onclick="doRegister()">注 册</button>
+      <div class="auth-switch">已有账号？<a onclick="showAuthLogin()">返回登录</a></div>
+    </div>
+  </div>
+</div>
+
+<!-- 左侧栏 -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header" onclick="editHeaderTitle()" title="点击编辑标题">
+    <span class="edit-badge">✏️ 编辑</span>
+    <h2 id="header-title">🔥消防设施管理</h2>
+    <div class="desc" id="header-desc">数字化管理系统</div>
+    <div class="stat" id="building-count">共 0 栋建筑</div>
+  </div>
+  <div class="cat-group">
+    <div class="cat-header" onclick="openProjectManager()"><span class="cat-left"><span>📁</span><span class="cat-title" data-cat="project">项目管理</span></span></div>
+  </div>
+  <div class="cat-group">
+    <div class="cat-header" onclick="toggleCategory('cat-building')"><span class="cat-left"><span>🏢</span><span class="cat-title" data-cat="building">建筑楼层</span><span class="cat-count" id="cat-building-count">0</span></span><span class="cat-arrow" id="cat-building-arrow">▼</span></div>
+    <div class="cat-body" id="cat-building"><div class="cat-inner">
+      <div class="cat-btn-row"><button class="cat-btn primary" onclick="showAddBuilding()">+新增建筑</button><button class="cat-btn" onclick="showAddFloor()">+新增楼层</button></div>
+      <div class="tree-wrap" id="tree-container"></div>
+    </div></div>
+  </div>
+  <div class="cat-group">
+    <div class="cat-header" onclick="toggleCategory('cat-legend')"><span class="cat-left"><span>🎨</span><span class="cat-title" data-cat="legend">图例配置</span><span class="cat-count" id="cat-legend-count">0</span></span><span class="cat-arrow" id="cat-legend-arrow">▼</span></div>
+    <div class="cat-body" id="cat-legend"><div class="cat-inner">
+      <div class="cat-btn-row"><button class="cat-btn primary" onclick="showAddLegendItem()">+新增图例</button><button class="cat-btn" onclick="toggleLegendOnMap()">📌悬浮地图</button></div>
+      <div class="cat-tip" id="legend-drag-tip">💡 拖拽图例到地图可快速添加设备</div>
+      <div id="sidebar-legend-edit-wrap"></div>
+    </div></div>
+  </div>
+  <div class="cat-group">
+    <div class="cat-header" onclick="toggleCategory('cat-batch')"><span class="cat-left"><span>📦</span><span class="cat-title" data-cat="batch">批量操作</span></span><span class="cat-arrow" id="cat-batch-arrow">▼</span></div>
+    <div class="cat-body" id="cat-batch"><div class="cat-inner">
+      <button class="cat-btn full primary" onclick="openBatchTab('add-b')">🏢 批量新增建筑</button>
+      <button class="cat-btn full" onclick="openBatchTab('add-f')">🏬 批量新增楼层</button>
+      <button class="cat-btn full" onclick="openBatchTab('del')">🗑️ 批量删除建筑</button>
+      <button class="cat-btn full" onclick="openBatchTab('import')">📥 Excel批量导入</button>
+      <button class="cat-btn full" onclick="openBatchTab('copy')">📋 复制建筑模板</button>
+      <button class="cat-btn full" onclick="autoApplyAllIcons()">🎯 一键应用矢量图标</button>
+      <div class="cat-tip">💡 批量操作可快速处理大量数据</div>
+    </div></div>
+  </div>
+  <div class="cat-group">
+    <div class="cat-header" onclick="toggleCategory('cat-report')"><span class="cat-left"><span>📊</span><span class="cat-title" data-cat="report">设施报表</span></span><span class="cat-arrow" id="cat-report-arrow">▼</span></div>
+    <div class="cat-body" id="cat-report"><div class="cat-inner">
+      <button class="cat-btn full" onclick="openFacilityList()">📋 设施列表总览</button>
+      <button class="cat-btn full" onclick="exportExcel()">📥 导出资产Excel</button>
+      <button class="cat-btn full" onclick="openStatsPanel()">📈 统计分析</button>
+      <button class="cat-btn full" onclick="openFormManager()">📝 表单管理</button>
+    </div></div>
+  </div>
+  <div class="cat-group">
+    <div class="cat-header" onclick="toggleCategory('cat-maintain')" title="点击标题打开工作台"><span class="cat-left"><span>🔧</span><span class="cat-title" data-cat="maintain" onclick="event.stopPropagation();openMaintainWorkbench()" style="cursor:pointer">维保巡检</span><span class="cat-count" id="cat-maintain-count">0</span></span><span class="cat-arrow" id="cat-maintain-arrow">▼</span></div>
+    <div class="cat-body" id="cat-maintain"><div class="cat-inner">
+      <button class="cat-btn full" onclick="openMaintainWorkbench()">🏠 维保巡检工作台</button>
+      <button class="cat-btn full" onclick="openArchive()">📚 历史档案</button>
+    </div></div>
+  </div>
+  <div class="cat-group">
+    <div class="cat-header" onclick="toggleCategory('cat-data')"><span class="cat-left"><span>💾</span><span class="cat-title" data-cat="data">数据备份</span></span><span class="cat-arrow" id="cat-data-arrow">▼</span></div>
+    <div class="cat-body" id="cat-data"><div class="cat-inner">
+      <button class="cat-btn full" onclick="showDataManage()">⚙️ 数据管理面板</button>
+      <button class="cat-btn full" onclick="exportJSONBackup()">📤 导出JSON备份</button>
+      <button class="cat-btn full" onclick="importJSONBackup()">📥 导入JSON恢复</button>
+      <button class="cat-btn full" onclick="document.getElementById('dxf-file-input').click()">📐 导入CAD(DXF)图纸</button>
+      <button class="cat-btn full" onclick="undoLast()">↩ 撤销最近删除</button>
+      <button class="cat-btn full" onclick="openOperationLog()">📝 操作日志</button>
+    </div></div>
+  </div>
+  <div class="cat-group">
+    <div class="cat-header" onclick="toggleCategory('cat-system')"><span class="cat-left"><span>⚙️</span><span class="cat-title" data-cat="system">系统设置</span></span><span class="cat-arrow" id="cat-system-arrow">▼</span></div>
+    <div class="cat-body" id="cat-system"><div class="cat-inner">
+      <button class="cat-btn full" onclick="openStaffManager()">👥 人员管理</button>
+      <button class="cat-btn full" onclick="openNotifySettings()">🔔 通知设置</button>
+    </div></div>
+  </div>
+    </div></div>
+  </div>
+</div>
+
+<!-- 主区域 -->
+<div class="main">
+  <!-- 账号栏 -->
+  <div class="auth-bar">
+    <div class="auth-bar-left">消防设施数字化管理系统</div>
+    <div class="auth-bar-right">
+      <span class="current-user" id="current-user-display" onclick="openAccountManager()" style="cursor:pointer" title="点击管理账号"></span>
+      <button class="btn ghost btn-logout" onclick="doLogout()" title="退出登录">🚪 退出登录</button>
+    </div>
+  </div>
+  <div class="top-bar">
+    <div class="page-title" id="page-location">请选择建筑楼层</div>
+    <div class="search-box">
+      <input id="search-input" placeholder="搜索设备编号/位置/类型... 按回车搜索" oninput="onSearchInput()" onkeydown="onSearchKeyDown(event)"/>
+      <span class="search-clear" id="search-clear" onclick="clearSearch()">✕</span>
+      <button class="search-adv-btn" id="search-adv-btn" onclick="toggleAdvSearch()">高级</button>
+      <button class="search-adv-btn" id="device-id-locator-btn" style="background:#3b82f6;color:#fff;margin-left:4px;display:none" onclick="showDeviceIdLocator()" title="通过设备ID精确查找并定位（仅超级管理员）">🎯 ID定位</button>
+    </div>
+    <div class="stat-row">
+      <div class="stat-card red" onclick="showDeviceList('all')" style="cursor:pointer"><div class="stat-num" id="stat-total">0</div><div class="stat-label">设施总数</div></div>
+      <div class="stat-card green" onclick="showDeviceList('正常')" style="cursor:pointer"><div class="stat-num" id="stat-normal">0</div><div class="stat-label">正常</div></div>
+      <div class="stat-card red" onclick="showDeviceList('故障')" style="cursor:pointer"><div class="stat-num" id="stat-fault">0</div><div class="stat-label">故障</div></div>
+      <div class="stat-card warn" onclick="showDeviceList('待维保')" style="cursor:pointer"><div class="stat-num" id="stat-waitcheck">0</div><div class="stat-label">待维保</div></div>
+      <div class="stat-card orange" onclick="showDeviceList('即将报废')" style="cursor:pointer"><div class="stat-num" id="stat-life-warn">0</div><div class="stat-label">即将报废</div></div>
+      <div class="stat-card grey" onclick="showDeviceList('已超期')" style="cursor:pointer"><div class="stat-num" id="stat-life-expire">0</div><div class="stat-label">已超期</div></div>
+    </div>
+    <div class="top-actions" id="top-actions">
+      <div class="vector-toolbar top-bar-vec" id="vector-toolbar">
+        <div class="vec-tool-group">
+          <button class="vec-btn" data-mode="rect" title="矩形">▭</button>
+          <button class="vec-btn" data-mode="circle" title="圆形">◯</button>
+          <button class="vec-btn" data-mode="polygon" title="多边形">⬡</button>
+          <button class="vec-btn" data-mode="line" title="线条">╱</button>
+          <button class="vec-btn" data-mode="arrow" title="箭头线">➤</button>
+          <button class="vec-btn" data-mode="text" title="文本标注">T</button>
+        </div>
+        <div class="vec-tool-divider"></div>
+        <div class="vec-tool-group">
+          <input aria-label="vec-color" type="color" id="vec-color" value="#ff4444" class="vec-color-input" title="颜色"/>
+        </div>
+        <div class="vec-tool-group">
+          <label class="vec-label"><input aria-label="vec-fill" type="checkbox" id="vec-fill" checked class="vec-check"/>填充</label>
+          <label class="vec-label"><input aria-label="vec-dash" type="checkbox" id="vec-dash" class="vec-check"/>虚线</label>
+        </div>
+        <div class="vec-tool-group">
+          <label class="vec-label">填<span id="vec-fill-opacity-val">30%</span></label>
+          <input aria-label="vec-fill-opacity" type="range" id="vec-fill-opacity" min="0" max="1" step="0.05" value="0.3" class="vec-range-small" title="填充透明度"/>
+        </div>
+        <div class="vec-tool-group">
+          <label class="vec-label">线<span id="vec-stroke-opacity-val">100%</span></label>
+          <input aria-label="vec-stroke-opacity" type="range" id="vec-stroke-opacity" min="0" max="1" step="0.05" value="1" class="vec-range-small" title="线条透明度"/>
+        </div>
+        <div class="vec-tool-group">
+          <label class="vec-label">线<span id="vec-weight-val">2</span></label>
+          <input aria-label="vec-weight" type="range" id="vec-weight" min="1" max="10" step="1" value="2" class="vec-range-small"/>
+        </div>
+        <div class="vec-tool-divider"></div>
+        <div class="vec-tool-group">
+          <button class="vec-btn" id="vec-copy" title="复制选中图形">📋</button>
+          <button class="vec-btn" id="vec-top" title="置顶">↑</button>
+          <button class="vec-btn" id="vec-bottom" title="置底">↓</button>
+          <button class="vec-btn danger" id="vec-delete" title="删除选中">🗑️</button>
+          <button class="vec-btn danger" id="vec-clear" title="清空当前楼层">清空</button>
+        </div>
+        <div class="vec-tool-divider"></div>
+        <div class="vec-tool-group">
+          <button class="vec-btn" id="dev-move-btn" title="批量移动选中设备(M)" onclick="startDeviceMove()">✋</button>
+        </div>
+      </div>
+      <button class="btn ghost top-sort-btn" data-id="scale" id="btn-scale-toggle" onclick="toggleScaleIndicator()" title="比例尺">📏</button>
+      <button aria-label="pending" class="btn ghost top-sort-btn" data-id="pending" draggable="true" id="btn-pending-toggle" onclick="togglePendingPanel()" title="待定位设备">📍待定位 <span id="pending-badge" style="background:#f59e0b;color:#fff;border-radius:10px;padding:0 6px;font-size:11px;margin-left:4px">0</span></button>
+      <button class="btn ghost top-sort-btn" data-id="mode" draggable="true" id="btn-mode">🔧管理模式</button>
+      <input aria-label="quick-floor-img" type="file" id="quick-floor-img" accept="image/*" style="display:none" onchange="quickReplaceFloorImage(event)"/>
+      <button class="btn ghost top-sort-btn" data-id="bgimg" id="btn-bgimg" disabled style="opacity:0.4;cursor:not-allowed" onclick="if(this.disabled){showToast('请先开启管理模式');return;}document.getElementById('quick-floor-img').click()" title="请先开启管理模式">🖼️换底图</button>
+    </div>
+  </div>
+  <div class="content-wrap">
+    <div class="map-container" id="map-container">
+      <div id="map"></div>
+      <div id="box-select-overlay"></div>
+      <button aria-label="toggle-left" class="sidebar-toggle left" id="toggle-left" onclick="toggleLeftSidebar()"><span id="toggle-left-icon">◀</span></button>
+      <button aria-label="toggle-right" class="sidebar-toggle right" id="toggle-right" onclick="toggleRightSidebar()"><span id="toggle-right-icon">◀</span></button>
+      <div class="drop-hint" id="drop-hint">释放鼠标，在此处添加设备</div>
+      <div class="marker-dragging-hint" id="drag-hint">拖动标记点可调整位置，松开自动保存</div>
+      <div class="resize-tip" id="resize-tip">标记大小：<span id="resize-size-val">32</span>px</div>
+      <div class="scale-indicator" id="scale-indicator"><span class="scale-close" onclick="toggleScaleIndicator()">×</span><div class="scale-row"><span class="scale-label">图纸比例：</span><span class="scale-value" id="scale-text">未设置</span></div><div class="scale-row"><span class="scale-label">视图缩放：</span><span class="scale-value" id="zoom-text">100%</span></div><div class="zoom-bar"><div class="zoom-fill" id="zoom-fill" style="width:50%"></div></div></div>
+      <div class="context-menu" id="context-menu">
+        <div class="context-menu-item" onclick="ctxEditDevice()">✏️ 编辑设备信息</div>
+        <div class="context-menu-item" onclick="ctxCopyDevice()">📋 复制设备</div>
+        <div class="context-menu-item" onclick="ctxMultiCopyDevice()">🔢 多次复制</div>
+        <div class="context-menu-item" onclick="ctxCrossFloorCopy()">📋 跨楼层复制</div>
+        <div class="context-menu-item" onclick="ctxMoveDevice()">📍 移动到此处</div>
+        <div class="context-menu-item" onclick="ctxChangeStatus()">🔄 快速改状态</div>
+        <div class="context-menu-item" onclick="ctxClearCustomStyle()">🎨 清除独立样式</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item danger" onclick="ctxDeleteDevice()">🗑️ 删除设备</div>
+      </div>
+      <div class="context-menu" id="vector-context-menu">
+        <div class="context-menu-item" onclick="vecMenuEdit()">✏️ 编辑名称</div>
+        <div class="context-menu-item" onclick="vecMenuCopy()">📋 复制图形</div>
+        <div class="context-menu-item" onclick="vecMenuTop()">⬆️ 置顶</div>
+        <div class="context-menu-item" onclick="vecMenuBottom()">⬇️ 置底</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item danger" onclick="vecMenuDelete()">🗑️ 删除图形</div>
+            
+      </div>
+      <div class="float-panel" id="float-legend-panel" style="top:10px;right:10px;width:240px;display:none">
+        <div class="float-panel-header" id="float-legend-header"><span>📋 图例（可拖拽到地图）</span><div class="panel-actions"><button class="panel-btn" onclick="toggleFloatPanel('float-legend-panel')">—</button><button class="panel-btn" onclick="closeFloatPanel('float-legend-panel')">✕</button></div></div>
+        <div class="float-panel-body"><div class="marker-size-bar"><label>标记大小</label><button onclick="adjustGlobalScale(-.1)">−</button><input aria-label="global-scale" type="range" id="global-scale" min="0.4" max="2.5" step="0.1" value="1" oninput="onGlobalScaleChange()"/><button onclick="adjustGlobalScale(.1)">+</button><span class="size-val" id="global-scale-val">100%</span></div><div class="legend-buttons"><button class="legend-btn" onclick="showAllLegend()">全部显示</button><button class="legend-btn" onclick="hideAllLegend()">全部隐藏</button></div><div id="float-legend-list"></div></div>
+        <div class="resize-handle" data-panel="float-legend-panel"></div>
+      </div>
+      <div class="float-panel" id="float-legend-config-panel" style="top:10px;left:10px;width:260px;display:none">
+        <div class="float-panel-header" id="float-legend-config-header"><span>⚙️ 图例配置</span><div class="panel-actions"><button class="panel-btn" onclick="showAddLegendItem()">+</button><button class="panel-btn" onclick="toggleFloatPanel('float-legend-config-panel')">—</button><button class="panel-btn" onclick="closeLegendConfigOnMap()">✕</button></div></div>
+        <div class="float-panel-body"><div id="float-legend-config-list"></div></div>
+        <div class="resize-handle" data-panel="float-legend-config-panel"></div>
+      </div>
+      <div class="collapsed-bar" id="collapsed-legend-bar" style="top:10px;right:10px" onclick="expandFloatPanel('float-legend-panel')">📋 图例</div>
+      <div class="collapsed-bar" id="collapsed-legend-config-bar" style="top:10px;left:10px" onclick="expandFloatPanel('float-legend-config-panel')">⚙️ 图例配置</div>
+      <div class="search-result-tip" id="search-tip"></div>
+      <div class="search-result-panel" id="search-result-panel">
+        <div class="srp-header" id="srp-header"><span>🔍 搜索结果 <span class="srp-count" id="srp-count">0</span></span><div class="srp-actions"><button class="srp-btn" onclick="toggleSearchResultPanel()">—</button><button class="srp-btn" onclick="closeSearchResultPanel()">✕</button></div></div>
+        <div class="srp-body" id="srp-body"></div>
+      </div>
+
+      <div class="pending-panel" id="pending-panel">
+        <div class="pending-header" id="pending-header"><span>📍 待定位设备 <span id="pending-count">0</span></span><span id="pending-toggle">—</span></div>
+        <div class="pending-body" id="pending-body"><div style="padding:12px;color:#999;font-size:12px;text-align:center">暂无待定位设备</div></div>
+      </div>
+    </div>
+    <!-- 设备清单弹窗 -->
+    <div class="modal" id="device-list-modal" style="display:none" onclick="if(event.target===this)this.style.display='none'">
+      <div class="modal-box" style="position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);max-width:1000px;width:90%;padding:0;height:80vh;display:flex;flex-direction:column;overflow:hidden;z-index:1001;background:#fff;border-radius:10px;box-shadow:0 10px 40px rgba(0,0,0,.3)">
+        <div style="padding:14px 18px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+          <span id="device-list-title" style="font-size:16px;font-weight:bold">设备清单</span>
+          <button style="background:none;border:none;font-size:18px;cursor:pointer;color:#666;padding:4px 8px" onclick="document.getElementById('device-list-modal').style.display='none'">✕</button>
+        </div>
+        <div style="padding:10px 16px;border-bottom:1px solid #eee;display:flex;gap:10px;align-items:center;flex-shrink:0">
+          <input type="text" id="device-list-search" placeholder="搜索设备类型/编号/位置..." style="flex:1;padding:6px 10px;border:1px solid #ddd;border-radius:4px" oninput="filterDeviceList()">
+          <span id="device-list-count" style="font-size:13px;color:#666;white-space:nowrap"></span>
+        </div>
+        <div id="device-list-content" style="flex:1;overflow:auto;min-height:0"></div>
+      </div>
+    </div>
+    <div class="right-panel collapsed" id="right-panel">
+      <div class="legend-title">设施图例（可拖拽到地图）<br><span style="font-size:11px;color:#777">点击勾选显示/隐藏，拖拽到地图添加</span></div>
+      <div class="marker-size-bar"><label>标记大小</label><button onclick="adjustGlobalScale(-.1)">−</button><input aria-label="global-scale-right" type="range" id="global-scale-right" min="0.4" max="2.5" step="0.1" value="1" oninput="onGlobalScaleChange()"/><button onclick="adjustGlobalScale(.1)">+</button><span class="size-val" id="global-scale-val-right">100%</span></div>
+      <div class="legend-buttons"><button class="legend-btn" onclick="showAllLegend()">全部显示</button><button class="legend-btn" onclick="hideAllLegend()">全部隐藏</button></div>
+      <div id="legend-list"></div>
+      <div class="status-legend">
+        <div class="legend-title">状态标识（边框颜色）</div>
+        <div style="font-size:12px;line-height:2;display:grid;grid-template-columns:1fr 1fr;gap:2px 8px">
+          <div><span class="status-dot" style="background:#fff;border:2px solid #22c55e"></span>正常</div>
+          <div><span class="status-dot marker-fault" style="background:#fff;border:2px solid #dc2626"></span>故障</div>
+          <div><span class="status-dot marker-warn" style="background:#fff;border:2px solid #eab308"></span>待维保</div>
+          <div><span class="status-dot marker-life-warn" style="background:#fff;border:2px solid #f97316"></span>即将报废</div>
+          <div><span class="status-dot marker-expire" style="background:#fff;border:2px solid #9333ea"></span>已超期</div>
+          <div><span class="status-dot" style="background:#fff;border:2px solid #6b7280;opacity:.6"></span>已报废</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 模态框：标题 -->
+<div id="modal-header" class="modal hidden"><div class="modal-box">
+  <h4>自定义系统标题</h4>
+  <label>主标题（含图标）</label><input id="hdr-title" placeholder="例：🔥消防设施管理"/>
+  <label>副标题</label><input id="hdr-desc" placeholder="例：数字化管理系统"/>
+  <label>顶部背景图片（可选）</label>
+  <div class="header-bg-row">
+    <div class="header-bg-preview" id="hdr-bg-preview">无背景</div>
+    <div class="header-bg-actions">
+      <input aria-label="hdr-bg-file" type="file" id="hdr-bg-file" accept="image/*" style="display:none" onchange="onHeaderBgChange(event)"/>
+      <button class="btn ghost" onclick="$('hdr-bg-file').click()">选择图片</button>
+      <button class="btn ghost" onclick="clearHeaderBg()">清除背景</button>
+    </div>
+  </div>
+  <div class="modal-btn-row"><button class="btn primary" onclick="saveHeaderTitle()">保存</button><button class="btn ghost" onclick="resetHeaderTitle()">恢复默认</button><button class="btn ghost" onclick="closeModal('modal-header')">取消</button></div>
+</div></div>
+
+<!-- 模态框：高级搜索 -->
+<div id="modal-adv-search" class="modal hidden"><div class="modal-box adv">
+  <h4>🔍 高级搜索</h4>
+  <div class="adv-row"><div><label>建筑</label><select aria-label="adv-building" id="adv-building" onchange="updateAdvFloorOptions()"><option value="">全部建筑</option></select></div><div><label>楼层</label><select aria-label="adv-floor" id="adv-floor"><option value="">全部楼层</option></select></div></div>
+  <div class="adv-row"><div><label>设施类型</label><select aria-label="adv-type" id="adv-type"><option value="">全部类型</option></select></div><div><label>设备状态</label><select aria-label="adv-status" id="adv-status"><option value="">全部状态</option><option>正常</option><option>故障</option><option>待维保</option><option>已报废</option></select></div></div>
+  <div class="adv-row"><div><label>寿命状态</label><select aria-label="adv-life" id="adv-life"><option value="">全部</option><option value="ok">正常</option><option value="warn">即将报废(≤1年)</option><option value="expire">已超期</option><option value="none">未设置</option></select></div><div><label>关键词（编号/位置/备注）</label><input id="adv-keyword" placeholder="模糊搜索"/></div></div>
+  <div class="adv-row"><div><label>安装日期 从</label><input aria-label="adv-install-from" type="date" id="adv-install-from"/></div><div><label>安装日期 至</label><input aria-label="adv-install-to" type="date" id="adv-install-to"/></div></div>
+  <div class="adv-row"><div><label>下次维保 从</label><input aria-label="adv-next-from" type="date" id="adv-next-from"/></div><div><label>下次维保 至</label><input aria-label="adv-next-to" type="date" id="adv-next-to"/></div></div>
+  <div class="adv-row"><div><label class="adv-check-label"><input aria-label="adv-custom-icon" type="checkbox" id="adv-custom-icon"/> 仅查找使用自定义图标的设备（样式不同）</label></div></div>
+  <div class="modal-btn-row"><button class="btn primary" onclick="doAdvSearch()">🔍 搜索</button><button class="btn ghost" onclick="resetAdvSearch()">重置条件</button><button class="btn ghost" onclick="closeModal('modal-adv-search')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：图例编辑 -->
+<div id="modal-legend-item" class="modal hidden"><div class="modal-box">
+  <h4>图例（设施类型）编辑</h4>
+  <input aria-label="leg-id" type="hidden" id="leg-id"/>
+  <label>类型名称</label><input id="leg-name" placeholder="例：室内消火栓">
+  <label>标记颜色</label><input aria-label="leg-color" type="color" id="leg-color">
+  <div class="color-preset-row" id="color-preset-row">
+    <span class="color-swatch" style="background:#d92121" onclick="setLegendColor('#d92121')" title="消防红"></span>
+    <span class="color-swatch" style="background:#f27022" onclick="setLegendColor('#f27022')" title="橙色"></span>
+    <span class="color-swatch" style="background:#e6a223" onclick="setLegendColor('#e6a223')" title="黄色"></span>
+    <span class="color-swatch" style="background:#22b559" onclick="setLegendColor('#22b559')" title="绿色"></span>
+    <span class="color-swatch" style="background:#06a8b9" onclick="setLegendColor('#06a8b9')" title="青色"></span>
+    <span class="color-swatch" style="background:#2563eb" onclick="setLegendColor('#2563eb')" title="蓝色"></span>
+    <span class="color-swatch" style="background:#9347d8" onclick="setLegendColor('#9347d8')" title="紫色"></span>
+    <span class="color-swatch" style="background:#8b572a" onclick="setLegendColor('#8b572a')" title="棕色"></span>
+    <span class="color-swatch" style="background:#333333" onclick="setLegendColor('#333333')" title="黑色"></span>
+    <span class="color-swatch" style="background:#ffffff;border:1px solid #ccc" onclick="setLegendColor('#ffffff')" title="白色"></span>
+  </div>
+  <label>标记形状</label>
+  <div style="display:flex;gap:10px;margin:4px 0 8px">
+    <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="leg-shape" id="leg-shape-circle" value="circle" checked onchange="updateLegSizePreview()"> ⭕</label>
+    <label style="font-size:13px;display:flex;align-items:center;gap:4px;cursor:pointer"><input type="radio" name="leg-shape" id="leg-shape-square" value="square" onchange="updateLegSizePreview()"> ⬜</label>
+  </div>
+  <label>预设矢量图标</label>
+  <div class="icon-picker-wrap" id="icon-picker-wrap"></div>
+  <label>自定义图标（上传图片/SVG）</label><input aria-label="leg-icon-file" type="file" id="leg-icon-file" accept="image/*">
+  <div style="display:flex;align-items:center;gap:10px;margin:6px 0"><div class="legend-icon-preview" id="leg-icon-preview"><span style="color:#bbb;font-size:11px">无图标</span></div><div style="font-size:12px;color:#666"><div>当前图标预览</div><button class="btn ghost" style="padding:3px 8px;font-size:11px;margin-top:4px" onclick="clearLegendIcon()">清除自定义图标</button></div></div>
+  <label>地图标记大小：<span id="leg-size-val" style="color:#d92121;font-weight:bold">32</span> px</label>
+  <div class="size-preview-row"><input aria-label="leg-size" type="range" id="leg-size" min="4" max="200" step="1" value="32" oninput="updateLegSizePreview()" style="flex:1"/><div class="size-preview-box" id="leg-size-preview-box"><div id="leg-size-preview-dot" style="width:32px;height:32px;background:#3388dd;border-radius:50%;border:2px solid #fff"></div></div></div>
+  <label>边框透明度：<span id="leg-border-opacity-val" style="color:#d92121;font-weight:bold">100%</span></label>
+  <div class="size-preview-row"><input aria-label="leg-border-opacity" type="range" id="leg-border-opacity" min="0" max="1" step="0.05" value="1" oninput="document.getElementById('leg-border-opacity-val').innerText=Math.round(this.value*100)+'%'" style="flex:1"/></div>
+  <div class="modal-btn-row"><button class="btn primary" onclick="saveLegendItem()">保存</button><button class="btn del" onclick="deleteLegendItem()">删除</button><button class="btn ghost" onclick="closeModal('modal-legend-item')">取消</button></div>
+</div></div>
+
+<!-- 模态框：预设图标编辑 -->
+<div id="modal-icon-edit" class="modal hidden"><div class="modal-box">
+  <h4 style="display:flex;justify-content:space-between;align-items:center">编辑预设图标 <button class="btn ghost" id="btn-reset-single-icon" style="font-size:12px;padding:3px 10px;display:none" onclick="resetSinglePresetIcon()">↩ 恢复默认</button></h4>
+  <label>图标名称</label><input id="icon-edit-name" placeholder="例：室内消火栓"/>
+  <div class="icon-edit-tabs">
+    <button class="icon-tab active" onclick="switchIconEditTab('draw',this)">🎨 绘图模式</button>
+    <button class="icon-tab" onclick="switchIconEditTab('pixel',this)">👾 像素模式</button>
+    <button class="icon-tab" onclick="switchIconEditTab('code',this)">📝 代码模式</button>
+  </div>
+  <div id="icon-edit-draw-panel">
+    <div class="draw-toolbar">
+      <button class="draw-tool active" data-tool="pen" title="画笔">✏️</button>
+      <button class="draw-tool" data-tool="line" title="直线">📏</button>
+      <button class="draw-tool" data-tool="rect" title="矩形">▭</button>
+      <button class="draw-tool" data-tool="circle" title="圆形">◯</button>
+      <button class="draw-tool" data-tool="eraser" title="橡皮擦">🧽</button>
+      <div class="draw-divider"></div>
+      <label class="draw-label">颜色</label>
+      <input aria-label="draw-color" type="color" id="draw-color" value="#d92121" class="draw-color-input"/>
+      <label class="draw-label">线宽</label>
+      <input aria-label="draw-width" type="range" id="draw-width" min="1" max="5" step="0.5" value="2" class="draw-range"/>
+      <label class="draw-label"><input aria-label="draw-fill" type="checkbox" id="draw-fill" class="draw-check"/>填充</label>
+      <div class="draw-divider"></div>
+      <button class="draw-tool" onclick="undoDraw()" title="撤销">↩</button>
+      <button class="draw-tool" onclick="clearDrawBoard()" title="清空">🗑️</button>
+    </div>
+    <div class="draw-board-wrap">
+      <svg id="draw-board" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"></svg>
+    </div>
+    <div style="font-size:11px;color:#999;margin-top:4px">💡 在画布上拖动绘制，用 currentColor 可跟随图例颜色</div>
+  </div>
+  <div id="icon-edit-pixel-panel" style="display:none">
+    <div class="pixel-toolbar">
+      <label class="draw-label">网格</label>
+      <select aria-label="pixel-size" id="pixel-size" onchange="initPixelGrid()" class="pixel-select">
+        <option value="16">16×16</option>
+        <option value="24" selected>24×24</option>
+        <option value="32">32×32</option>
+        <option value="48">48×48</option>
+      </select>
+      <div class="draw-divider"></div>
+      <label class="draw-label">颜色</label>
+      <input aria-label="pixel-color" type="color" id="pixel-color" value="#d92121" class="draw-color-input"/>
+      <label class="draw-label"><input aria-label="pixel-eraser" type="checkbox" id="pixel-eraser" class="draw-check"/>橡皮</label>
+      <label class="draw-label"><input aria-label="pixel-antialias" type="checkbox" id="pixel-antialias" class="draw-check" onchange="syncSvgFromPixel()"/>平滑</label>
+      <div class="draw-divider"></div>
+      <button class="draw-tool" onclick="clearPixelGrid()" title="清空">🗑️</button>
+      <button class="draw-tool" onclick="fillPixelGrid()" title="填充全图">🪣</button>
+    </div>
+    <div class="pixel-grid-wrap">
+      <div class="pixel-grid" id="pixel-grid"></div>
+    </div>
+    <div style="font-size:11px;color:#999;margin-top:4px">💡 点击或拖动绘制像素，自动转为SVG矢量图</div>
+  </div>
+  <div id="icon-edit-code-panel" style="display:none">
+    <label>SVG代码</label>
+    <textarea id="icon-edit-svg" rows="6" aria-label="SVG代码编辑" style="font-family:monospace;font-size:12px" oninput="updateIconEditPreview()"></textarea>
+  </div>
+  <div style="display:flex;align-items:center;gap:12px;margin:8px 0">
+    <div>预览：<span id="icon-edit-preview"></span></div>
+  </div>
+  <div class="modal-btn-row"><button class="btn primary" onclick="savePresetIcon()">保存</button><button class="btn ghost" onclick="closeModal('modal-icon-edit')">取消</button></div>
+</div></div>
+
+<!-- 模态框：建筑 -->
+<div id="modal-building" class="modal hidden"><div class="modal-box">
+  <h4>建筑信息</h4>
+  <input aria-label="b-id" type="hidden" id="b-id"/><label>建筑名称</label><input aria-label="b-name" id="b-name"/><label>地址</label><input aria-label="b-address" id="b-address"/><label>备注</label><textarea id="b-remark"></textarea>
+  <div class="modal-btn-row"><button class="btn primary" onclick="saveBuilding()">保存</button><button class="btn ghost" onclick="closeModal('modal-building')">取消</button></div>
+</div></div>
+
+<!-- 模态框：楼层 -->
+<div id="modal-floor" class="modal hidden"><div class="modal-box">
+  <h4>楼层信息</h4>
+  <input aria-label="f-id" type="hidden" id="f-id"/><label>楼层名称</label><input id="f-name" placeholder="1F / 2F"/>
+  <label>平面图图片</label><input aria-label="f-img" type="file" id="f-img" accept="image/*" onchange="previewFloorImg(event)">
+  <div id="floor-img-preview-wrap"></div>
+  <label>图纸比例尺</label><input id="f-scale" placeholder="例：1:100"/>
+  <div class="floor-device-manage">
+    <div class="fdm-title">🧹 楼层设施管理</div>
+    <div class="fdm-stats" id="floor-device-stats">加载中...</div>
+    <div class="fdm-actions">
+      <select aria-label="floor-del-type" id="floor-del-type" class="fdm-select"><option value="">选择要删除的设施类型</option></select>
+      <button class="btn del" onclick="deleteFloorDeviceByType()">删除选中类型</button>
+      <button class="btn del" onclick="clearAllFloorDevices()">一键清除全部</button>
+      <button class="btn ghost" onclick="clearFloorCustomStyle()">清除该类型独立样式</button>
+    </div>
+  </div>
+  <div style="margin:12px 0;padding:10px;background:#f0f9ff;border-radius:6px;border:1px solid #bae6fd">
+    <div style="font-weight:bold;margin-bottom:8px;font-size:13px">📱 楼层巡检二维码</div>
+    <div style="font-size:12px;color:#666;margin-bottom:8px">打印此二维码贴在楼层入口，巡检员扫码可整层巡检</div>
+    <div style="margin-bottom:8px">
+      <label style="font-size:12px">地址（选填）</label>
+      <div style="display:flex;gap:6px;align-items:center;margin-top:4px">
+        <input id="f-qr-url" placeholder="不填则使用全局默认地址，如 https://xxx.com/floor-inspect.html" style="flex:1;font-size:12px;padding:4px 8px;border:1px solid #bae6fd;border-radius:5px;box-sizing:border-box">
+        <button class="btn ghost" style="padding:3px 10px;font-size:11px;white-space:nowrap" onclick="useGlobalQrUrl()">用全局</button>
+      </div>
+    </div>
+    <button class="btn primary small" onclick="generateFloorInspectQR()">生成楼层巡检二维码</button>
+    <div id="floor-qr-preview" style="margin-top:10px;text-align:center;display:none">
+      <div id="floor-qr-canvas"></div>
+      <div style="font-size:12px;color:#666;margin-top:8px">右键保存图片或截图打印</div>
+    </div>
+  </div>
+  <div class="modal-btn-row"><button class="btn primary" onclick="saveFloor()">保存</button><button class="btn ghost" onclick="closeModal('modal-floor')">取消</button></div>
+</div></div>
+
+<!-- 模态框：字段自定义 -->
+<div id="modal-field-config" class="modal hidden side-panel-modal"><div class="modal-box side-config-box" id="side-config-box">
+  <h4>字段管理 <button class="btn ghost" style="font-size:11px;padding:2px 8px;float:right" onclick="addCustomField()">+ 添加字段</button></h4>
+  <p style="font-size:12px;color:#888;margin-bottom:12px">勾选显示，可修改名称，可添加自定义字段</p>
+  <div id="field-config-list" style="max-height:50vh;overflow-y:auto"></div>
+  <div class="modal-btn-row">
+    <button class="btn primary" onclick="saveFieldConfig()">保存</button>
+    <button class="btn ghost" onclick="resetFieldConfig()">恢复默认</button>
+    <button class="btn ghost" onclick="closeModal('modal-field-config')">取消</button>
+  </div>
+</div></div>
+
+<!-- 模态框：设备 -->
+<div id="modal-device" class="modal hidden"><div class="modal-box">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+    <h4 style="margin:0;font-size:16px;font-weight:700;background:linear-gradient(135deg,#0ea5e9,#06b6d4,#14b8a6);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text">🔥 消防设施点位</h4>
+  </div>
+  <input aria-label="dev-id" type="hidden" id="dev-id"/><input aria-label="dev-x" type="hidden" id="dev-x"/><input aria-label="dev-y" type="hidden" id="dev-y"/>
+  <!-- 科技感功能操作区 -->
+  <div style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 50%,#0f172a 100%);border:1px solid rgba(6,182,212,0.3);border-radius:12px;padding:14px;margin-bottom:14px;box-shadow:0 0 20px rgba(6,182,212,0.1),inset 0 1px 0 rgba(255,255,255,0.05);position:relative;overflow:hidden">
+    <div style="position:absolute;top:0;left:0;right:0;height:1px;background:linear-gradient(90deg,transparent,rgba(6,182,212,0.6),transparent)"></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:stretch">
+      <!-- 补录巡检（事后补录，现场巡检请扫码） -->
+      <button onclick="openInspectCheckinModal(document.getElementById('dev-id').value)" style="flex:1;min-width:90px;background:rgba(16,185,129,0.1);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:12px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:all .2s;position:relative;overflow:hidden" onmouseover="this.style.background='rgba(16,185,129,0.2)';this.style.borderColor='rgba(16,185,129,0.6)';this.style.boxShadow='0 0 16px rgba(16,185,129,0.3)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(16,185,129,0.1)';this.style.borderColor='rgba(16,185,129,0.3)';this.style.boxShadow='none';this.style.transform='translateY(0)'">
+        <span style="font-size:22px;line-height:1;filter:drop-shadow(0 0 6px rgba(16,185,129,0.5))">📝</span>
+        <span style="font-size:12px;font-weight:600;color:#6ee7b7;white-space:nowrap">补录巡检</span>
+      </button>
+      <!-- 关联表单 -->
+      <button onclick="openDeviceFormLink()" title="设置此设备扫码巡检时自动填写的表单" style="flex:1;min-width:90px;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:10px;padding:12px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:all .2s;position:relative;overflow:hidden" onmouseover="this.style.background='rgba(139,92,246,0.2)';this.style.borderColor='rgba(139,92,246,0.6)';this.style.boxShadow='0 0 16px rgba(139,92,246,0.3)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(139,92,246,0.1)';this.style.borderColor='rgba(139,92,246,0.3)';this.style.boxShadow='none';this.style.transform='translateY(0)'">
+        <span style="font-size:22px;line-height:1;filter:drop-shadow(0 0 6px rgba(139,92,246,0.5))">📋</span>
+        <span style="font-size:12px;font-weight:600;color:#c4b5fd;white-space:nowrap">关联表单</span>
+      </button>
+      <!-- 创建工单 -->
+      <button onclick="createWorkOrderFromDevice(document.getElementById('dev-id').value)" style="flex:1;min-width:90px;background:rgba(245,158,11,0.1);border:1px solid rgba(245,158,11,0.3);border-radius:10px;padding:12px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:all .2s;position:relative;overflow:hidden" onmouseover="this.style.background='rgba(245,158,11,0.2)';this.style.borderColor='rgba(245,158,11,0.6)';this.style.boxShadow='0 0 16px rgba(245,158,11,0.3)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(245,158,11,0.1)';this.style.borderColor='rgba(245,158,11,0.3)';this.style.boxShadow='none';this.style.transform='translateY(0)'">
+        <span style="font-size:22px;line-height:1;filter:drop-shadow(0 0 6px rgba(245,158,11,0.5))">🔧</span>
+        <span style="font-size:12px;font-weight:600;color:#fcd34d;white-space:nowrap">创建工单</span>
+      </button>
+      <!-- 新增维保记录 -->
+      <button onclick="openMaintainLogModal()" style="flex:1;min-width:90px;background:rgba(59,130,246,0.1);border:1px solid rgba(59,130,246,0.3);border-radius:10px;padding:12px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:all .2s;position:relative;overflow:hidden" onmouseover="this.style.background='rgba(59,130,246,0.2)';this.style.borderColor='rgba(59,130,246,0.6)';this.style.boxShadow='0 0 16px rgba(59,130,246,0.3)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(59,130,246,0.1)';this.style.borderColor='rgba(59,130,246,0.3)';this.style.boxShadow='none';this.style.transform='translateY(0)'">
+        <span style="font-size:22px;line-height:1;filter:drop-shadow(0 0 6px rgba(59,130,246,0.5))">➕</span>
+        <span style="font-size:12px;font-weight:600;color:#93c5fd;white-space:nowrap">维保记录</span>
+      </button>
+      <!-- 查看完整档案 -->
+      <button onclick="openDeviceArchive(document.getElementById('dev-id').value)" style="flex:1;min-width:90px;background:rgba(6,182,212,0.1);border:1px solid rgba(6,182,212,0.3);border-radius:10px;padding:12px 8px;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:6px;transition:all .2s;position:relative;overflow:hidden" onmouseover="this.style.background='rgba(6,182,212,0.2)';this.style.borderColor='rgba(6,182,212,0.6)';this.style.boxShadow='0 0 16px rgba(6,182,212,0.3)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(6,182,212,0.1)';this.style.borderColor='rgba(6,182,212,0.3)';this.style.boxShadow='none';this.style.transform='translateY(0)'">
+        <span style="font-size:22px;line-height:1;filter:drop-shadow(0 0 6px rgba(6,182,212,0.5))">📋</span>
+        <span style="font-size:12px;font-weight:600;color:#67e8f9;white-space:nowrap">完整档案</span>
+      </button>
+      <!-- 自定义字段（默认隐藏） -->
+      <button id="btn-field-config" onclick="openFieldConfig()" style="flex:1;min-width:90px;display:none;background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:10px;padding:12px 8px;cursor:pointer;flex-direction:column;align-items:center;gap:6px;transition:all .2s;position:relative;overflow:hidden" onmouseover="this.style.background='rgba(139,92,246,0.2)';this.style.borderColor='rgba(139,92,246,0.6)';this.style.boxShadow='0 0 16px rgba(139,92,246,0.3)';this.style.transform='translateY(-2px)'" onmouseout="this.style.background='rgba(139,92,246,0.1)';this.style.borderColor='rgba(139,92,246,0.3)';this.style.boxShadow='none';this.style.transform='translateY(0)'">
+        <span style="font-size:22px;line-height:1;filter:drop-shadow(0 0 6px rgba(139,92,246,0.5))">⚙️</span>
+        <span style="font-size:12px;font-weight:600;color:#c4b5fd;white-space:nowrap">自定义字段</span>
+      </button>
+    </div>
+  </div>
+  <!-- 当前关联表单状态条 -->
+  <div id="dev-form-link-status" style="display:flex;align-items:center;gap:10px;padding:8px 12px;background:linear-gradient(135deg,#f5f3ff,#eef2ff);border:1px solid #ddd6fe;border-radius:10px;margin:8px 0;font-size:12px">
+    <span id="dev-form-link-status-icon" style="font-size:14px">📋</span>
+    <span id="dev-form-link-status-text" style="flex:1;color:#4c1d95;font-weight:500">未关联巡检表单</span>
+    <button id="dev-form-link-modify-btn" onclick="openDeviceFormLink()" style="display:none;padding:4px 12px;font-size:11px;border:1px solid #c4b5fd;background:#fff;color:#6d28d9;border-radius:6px;cursor:pointer;white-space:nowrap">修改</button>
+    <button id="dev-form-link-cancel-btn" onclick="clearDeviceFormLink()" style="display:none;padding:4px 12px;font-size:11px;border:1px solid #fbcfe8;background:#fff;color:#be185d;border-radius:6px;cursor:pointer;white-space:nowrap">取消关联</button>
+    <button id="dev-form-link-add-btn" onclick="openDeviceFormLink()" style="padding:4px 12px;font-size:11px;border:none;background:linear-gradient(135deg,#8b5cf6,#6366f1);color:#fff;border-radius:6px;cursor:pointer;white-space:nowrap">关联表单</button>
+  </div>
+  <label>设施类型</label><select aria-label="dev-type" id="dev-type"></select>
+  <label>设备编号</label><input aria-label="dev-code" id="dev-code"/>
+  <label>位置描述</label><input aria-label="dev-pos-desc" id="dev-pos-desc"/>
+  <label>安装日期</label><input aria-label="dev-install" type="date" id="dev-install"/>
+  <label>预计使用年限（年，0=不限制）</label><input aria-label="dev-life" type="number" id="dev-life" min="0" max="50" step="1"/>
+  <label>下次维保</label><input aria-label="dev-next" type="date" id="dev-next"/>
+  <label>设备状态</label><select aria-label="dev-status" id="dev-status"><option>正常</option><option>故障</option><option>待维保</option><option>已报废</option></select>
+  <div style="padding:14px 16px;background:linear-gradient(135deg,#f0fdf4,#eff6ff);border:1px solid #d9f0e3;border-radius:12px;margin:8px 0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div style="display:flex;align-items:center;gap:8px">
+        <span style="font-size:13px;font-weight:600;color:#166534">🎨 图标样式</span>
+        <span style="font-size:11px;color:#6b7280">不设置则使用图例配置</span>
+      </div>
+      <button class="btn ghost" style="padding:3px 12px;font-size:11px;color:#059669;border:1px solid #bbe8d0;background:#fff;border-radius:6px" onclick="clearDeviceIconStyle()">清除全部</button>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start">
+      <!-- 左：预览区 -->
+      <div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;gap:6px;padding:10px 12px;background:#fff;border:1px dashed #86efac;border-radius:12px;box-shadow:0 1px 6px rgba(22,101,52,0.06)">
+        <div style="width:64px;height:64px;display:flex;align-items:center;justify-content:center;overflow:hidden">
+          <div id="dev-style-preview" style="width:32px;height:32px;border-radius:50%;background:#ff0000;border:2px solid #fff;box-shadow:0 1px 4px #0004"></div>
+        </div>
+        <span style="font-size:11px;color:#9ca3af">效果预览</span>
+      </div>
+      <!-- 右：三行设置 -->
+      <div style="flex:1;min-width:0;display:flex;flex-direction:column;gap:12px">
+        <!-- 行1：图标来源 -->
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="flex-shrink:0;width:64px;font-size:12px;color:#374151;font-weight:500">图标来源</span>
+          <div style="flex:1;display:flex;align-items:center;gap:14px;flex-wrap:wrap;min-width:0">
+            <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;color:#374151">
+              <input type="radio" name="dev-icon-source" id="dev-icon-default" checked onchange="switchIconSource('default')"> 默认圆形
+            </label>
+            <label style="font-size:12px;display:flex;align-items:center;gap:4px;cursor:pointer;color:#374151">
+              <input type="radio" name="dev-icon-source" id="dev-icon-custom" onchange="switchIconSource('custom')"> 图片
+            </label>
+            <input aria-label="dev-custom-icon-file" type="file" id="dev-custom-icon-file" accept="image/*" onchange="onDeviceCustomIcon(this)" style="display:none">
+            <button class="btn ghost" id="dev-upload-icon-btn" style="padding:3px 12px;font-size:11px;color:#059669;border:1px solid #bbe8d0;background:#fff;border-radius:6px;display:none" onclick="$('dev-custom-icon-file').click()">上传图片</button>
+            <div class="photo-preview-wrap" id="dev-custom-icon-wrap" style="display:none!important">
+              <img alt="" id="dev-custom-icon-preview" class="preview-img" style="max-width:40px;max-height:40px"/>
+              <button type="button" class="photo-del-btn" onclick="clearDeviceCustomIcon()" style="width:18px;height:18px;font-size:10px;top:-5px;right:-5px">✕</button>
+            </div>
+          </div>
+        </div>
+        <!-- 行2：独立颜色 -->
+        <div style="display:flex;align-items:center;gap:12px">
+          <label for="dev-use-custom-color" style="flex-shrink:0;width:64px;font-size:12px;color:#374151;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:4px">
+            <input type="checkbox" id="dev-use-custom-color" onchange="toggleDeviceCustomColor()"> 独立颜色
+          </label>
+          <div style="flex:1;display:flex;align-items:center;gap:7px;flex-wrap:wrap;min-width:0">
+            <input aria-label="dev-custom-color" type="color" id="dev-custom-color" value="#ff0000" onchange="updateDevStylePreview()" style="width:24px;height:24px;vertical-align:middle;border:2px solid #fff;border-radius:50%;padding:0;cursor:pointer;box-shadow:0 1px 4px rgba(0,0,0,0.12);background:#fff" disabled>
+            <span class="swatch-circle" style="background:#d92121" onclick="setDeviceColor('#d92121')" title="消防红"></span>
+            <span class="swatch-circle" style="background:#f27022" onclick="setDeviceColor('#f27022')" title="橙色"></span>
+            <span class="swatch-circle" style="background:#e6a223" onclick="setDeviceColor('#e6a223')" title="黄色"></span>
+            <span class="swatch-circle" style="background:#22b559" onclick="setDeviceColor('#22b559')" title="绿色"></span>
+            <span class="swatch-circle" style="background:#06a8b9" onclick="setDeviceColor('#06a8b9')" title="青色"></span>
+            <span class="swatch-circle" style="background:#2563eb" onclick="setDeviceColor('#2563eb')" title="蓝色"></span>
+            <span class="swatch-circle" style="background:#9347d8" onclick="setDeviceColor('#9347d8')" title="紫色"></span>
+            <span class="swatch-circle" style="background:#333333" onclick="setDeviceColor('#333333')" title="黑色"></span>
+          </div>
+        </div>
+        <!-- 行3：独立大小 -->
+        <div style="display:flex;align-items:center;gap:12px">
+          <label for="dev-use-custom-size" style="flex-shrink:0;width:64px;font-size:12px;color:#374151;font-weight:500;cursor:pointer;display:flex;align-items:center;gap:4px">
+            <input type="checkbox" id="dev-use-custom-size" onchange="toggleDeviceCustomSize()"> 独立大小
+          </label>
+          <div style="flex:1;display:flex;align-items:center;gap:8px;flex-wrap:wrap;min-width:0">
+            <input aria-label="dev-custom-size" type="range" id="dev-custom-size" min="4" max="120" value="32" oninput="syncDeviceSizeInput(this.value)" style="width:120px;accent-color:#059669" disabled>
+            <input aria-label="dev-custom-size-num" type="number" id="dev-custom-size-num" min="4" max="120" value="32" onchange="syncDeviceSizeSlider(this.value)" style="width:56px;padding:3px 6px;font-size:12px;border:1px solid #d1d5db;border-radius:6px" disabled>
+            <span style="font-size:11px;color:#6b7280">px</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <label>现场照片</label><input aria-label="dev-photo-file" type="file" id="dev-photo-file" accept="image/*">
+  <div class="photo-preview-wrap" id="dev-photo-wrap" style="display:none!important"><img alt="" id="dev-photo-preview" class="preview-img"/><button type="button" class="photo-del-btn" onclick="clearDevicePhoto()">✕</button></div>
+  <label>生产厂家</label><input aria-label="dev-manufacturer" id="dev-manufacturer"/>
+  <label>规格型号</label><input aria-label="dev-model" id="dev-model"/>
+  <label>责任人</label><input aria-label="dev-person" id="dev-person"/>
+  <label>联系电话</label><input aria-label="dev-phone" id="dev-phone"/>
+  <label>备注</label><textarea id="dev-remark"></textarea>
+  <div class="qrcode-section">
+  <div class="qrcode-header">
+    <span>设备二维码</span>
+    <div class="qrcode-actions">
+      <label style="font-size:12px">大小<select aria-label="qr-size" id="qr-size" onchange="regenDeviceQR()"><option value="128">小</option><option value="180" selected>中</option><option value="256">大</option></select></label>
+      <button class="btn ghost" style="padding:3px 10px;font-size:12px" onclick="openQrUrlSetting()">地址</button>
+      <button class="btn ghost" style="padding:3px 10px;font-size:12px" onclick="toggleQrStyle()">样式</button>
+      <button class="btn ghost" style="padding:3px 10px;font-size:12px" onclick="downloadDeviceQR()">下载</button>
+    </div>
+  </div>
+  <div class="qr-style-panel" id="qr-style-panel" style="display:none;padding:10px;background:#f8f9fa;border-radius:8px;margin-bottom:8px">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+      <label style="font-size:12px">前景<input aria-label="qr-color-dark" type="color" id="qr-color-dark" value="#1a1a1a" onchange="regenDeviceQR()" style="width:30px;height:24px;vertical-align:middle"></label>
+      <label style="font-size:12px">背景<input aria-label="qr-color-light" type="color" id="qr-color-light" value="#ffffff" onchange="regenDeviceQR()" style="width:30px;height:24px;vertical-align:middle"></label>
+      <label style="font-size:12px">点样式<select aria-label="qr-dot-style" id="qr-dot-style" onchange="regenDeviceQR()" style="font-size:12px"><option value="square">方块</option><option value="dot">圆点</option><option value="rounded">圆角</option></select></label>
+      <label style="font-size:12px">纠错<select aria-label="qr-level" id="qr-level" onchange="regenDeviceQR()" style="font-size:12px"><option value="L">L(低)</option><option value="M" selected>M(中)</option><option value="Q">Q(较高)</option><option value="H">H(高)</option></select></label>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:8px">
+      <label style="font-size:12px">标题<input type="text" id="qr-title" placeholder="可选" onchange="regenDeviceQR()" style="font-size:12px;width:100px;padding:2px 4px"></label>
+      <label style="font-size:12px">副标题<input type="text" id="qr-subtitle" placeholder="可选" onchange="regenDeviceQR()" style="font-size:12px;width:100px;padding:2px 4px"></label>
+      <label style="font-size:12px">Logo<input aria-label="qr-logo" type="file" id="qr-logo" accept="image/*" onchange="onQrLogoChange(this)" style="font-size:11px"></label>
+      <button class="btn ghost" style="padding:2px 8px;font-size:11px" onclick="clearQrLogo()">清除Logo</button>
+      <button class="btn ghost" style="padding:2px 8px;font-size:11px" onclick="resetQrStyle()">重置</button>
+    </div>
+  </div>
+  <div class="qrcode-box" id="qrcode-box"></div>
+  <div style="font-size:11px;color:#999;text-align:center;margin-top:4px">扫码打开设备详情网页（微信/相机/支付宝全兼容）</div>
+</div>
+  <div class="modal-btn-row"><button class="btn primary" onclick="saveDevice()">保存</button><button class="btn del" onclick="delDevice()">删除设施</button><button class="btn ghost" onclick="closeModal('modal-device')">取消</button></div>
+</div></div>
+
+<!-- 模态框：维保 -->
+<div id="modal-maintain" class="modal hidden"><div class="modal-box">
+  <h4>新增维保记录</h4>
+  <input aria-label="log-dev-id" type="hidden" id="log-dev-id"/><label>维保日期</label><input aria-label="log-date" type="date" id="log-date"/><label>维保人员</label><input aria-label="log-person" id="log-person"/>
+  <label>维保结果</label><select aria-label="log-result" id="log-result"><option>正常维护完成</option><option>部件更换</option><option>故障待修</option><option>其他</option></select>
+  <label>维保备注</label><textarea id="log-remark"></textarea>
+  <div class="modal-btn-row"><button class="btn primary" onclick="saveMaintainLog()">保存记录</button><button class="btn ghost" onclick="closeModal('modal-maintain')">取消</button></div>
+</div></div>
+
+<!-- 模态框：设施列表 -->
+<div id="modal-facility-list" class="modal hidden"><div class="modal-box wide">
+  <h4>全部设施列表（含寿命预警）</h4>
+  <div id="facility-table-wrap"></div>
+  <div class="modal-btn-row"><button class="btn primary" onclick="exportMaintainExcel()">导出维保Excel</button><button class="btn ghost" onclick="closeModal('modal-facility-list')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：数据管理 -->
+<div id="modal-data" class="modal hidden"><div class="modal-box">
+  <h4>数据管理</h4>
+  <div style="background:#fef3c7;padding:10px;border-radius:6px;margin:10px 0;font-size:13px">⚠️ 数据存储在浏览器本地，建议定期导出备份。</div>
+  <div style="margin:10px 0"><strong>当前数据统计：</strong><div id="data-stats" style="font-size:13px;margin-top:6px;color:#555"></div></div>
+  <div style="margin:10px 0;padding:10px;background:#f8fafc;border-radius:6px">
+    <strong>📦 本地库更新</strong>
+    <div id="lib-versions" style="font-size:12px;color:#666;margin-top:6px;line-height:1.8">正在检测版本...</div>
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="checkLibUpdates()">🔍 检查更新</button>
+      <button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="downloadLib('leaflet')">⬇ Leaflet</button>
+      <button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="downloadLib('xlsx')">⬇ XLSX</button>
+      <button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="downloadLib('dxf')">⬇ DXF解析</button>
+    </div>
+    <div style="font-size:11px;color:#999;margin-top:6px">下载后将文件放入 lib/ 目录覆盖即可</div>
+  </div>
+  <div class="modal-btn-row"><button class="btn primary" onclick="exportJSONBackup()">📤导出JSON</button><button class="btn warn" onclick="importJSONBackup()">📥导入JSON</button><button class="btn ghost" onclick="syncToCloud()">☁️同步到云端</button><button class="btn ghost" onclick="undoLast()">↩ 撤销</button><button class="btn del" onclick="clearAllData()">🗑️清空</button><button class="btn ghost" onclick="closeModal('modal-data')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：批量操作 -->
+<div id="modal-batch" class="modal hidden"><div class="modal-box wide">
+  <h4>📦 批量操作 / 导入 / 复制</h4>
+  <div class="batch-tabs">
+    <button class="batch-tab active" onclick="switchBatchTab('add-b',this)">批量增建</button>
+    <button class="batch-tab" onclick="switchBatchTab('add-f',this)">批量增层</button>
+    <button class="batch-tab" onclick="switchBatchTab('del',this)">批量删除</button>
+    <button class="batch-tab" onclick="switchBatchTab('import',this)">Excel导入</button>
+    <button class="batch-tab" onclick="switchBatchTab('copy',this)">复制模板</button>
+  </div>
+  <div class="batch-panel active" id="batch-add-b"><p style="font-size:13px;color:#666;margin-bottom:6px">每行输入一个建筑名称，批量创建：</p><textarea class="batch-textarea" id="batch-b-names" placeholder="第一教学楼&#10;第二教学楼&#10;实验楼"></textarea><div class="modal-btn-row"><button class="btn primary" onclick="batchAddBuildings()">批量创建建筑</button><button class="btn ghost" onclick="closeModal('modal-batch')">关闭</button></div><div class="batch-result" id="batch-b-result"></div></div>
+  <div class="batch-panel" id="batch-add-f"><label>选择目标建筑</label><select aria-label="batch-f-building" id="batch-f-building"></select><p style="font-size:13px;color:#666;margin:6px 0">每行输入一个楼层名称：</p><textarea class="batch-textarea" id="batch-f-names" placeholder="1F&#10;2F&#10;3F"></textarea><div class="modal-btn-row"><button class="btn primary" onclick="batchAddFloors()">批量创建楼层</button><button class="btn ghost" onclick="closeModal('modal-batch')">关闭</button></div><div class="batch-result" id="batch-f-result"></div></div>
+  <div class="batch-panel" id="batch-del"><p style="font-size:13px;color:#666;margin-bottom:6px">勾选要删除的建筑，可撤销恢复：</p><div class="batch-check-list" id="batch-del-list"></div><div style="margin-top:8px;font-size:12px;color:#666"><label><input aria-label="batch-del-all" type="checkbox" id="batch-del-all" onchange="toggleBatchDelAll(this)"/> 全选</label></div><div class="modal-btn-row"><button class="btn del" onclick="batchDeleteBuildings()">批量删除选中</button><button class="btn ghost" onclick="closeModal('modal-batch')">关闭</button></div><div class="batch-result" id="batch-del-result"></div></div>
+  <div class="batch-panel" id="batch-import"><p style="font-size:13px;color:#666;margin-bottom:6px">1. 先下载模板填写<br>2. 建筑/楼层不存在时<b>自动创建</b><br>3. 坐标X/Y留空则标记为<b>待定位</b>，后续在地图上点击放置<br>4. 除建筑名称、楼层、设施类型外，其余均为选填</p><div class="modal-btn-row" style="margin-top:0"><button class="btn ghost" onclick="downloadImportTemplate()">📥 下载导入模板</button></div><label style="margin-top:10px;display:block">选择Excel文件</label><input aria-label="batch-import-file" type="file" id="batch-import-file" accept=".xlsx,.xls,.csv"/><div class="modal-btn-row"><button class="btn primary" onclick="importDevicesExcel()">开始导入</button><button class="btn ghost" onclick="closeModal('modal-batch')">关闭</button></div><div class="batch-result" id="batch-import-result"></div></div>
+  <div class="batch-panel" id="batch-copy"><p style="font-size:13px;color:#666;margin-bottom:6px">选择建筑作为模板复制，可连续多次复制：</p><label>选择源建筑</label><select aria-label="copy-src-building" id="copy-src-building"></select><label>新建筑名称（留空自动加"副本"）</label><input id="copy-new-name" placeholder="留空则自动命名"/><div style="margin:8px 0;font-size:13px"><label><input aria-label="copy-with-devices" type="checkbox" id="copy-with-devices" checked/> 同时复制设备点位</label><br><label style="margin-top:4px"><input aria-label="copy-with-logs" type="checkbox" id="copy-with-logs"/> 同时复制维保记录</label></div><div class="modal-btn-row"><button class="btn primary" onclick="duplicateBuilding()">复制建筑（可连续点击）</button><button class="btn ghost" onclick="closeModal('modal-batch')">关闭</button></div><div class="batch-result" id="batch-copy-result"></div></div>
+</div></div>
+<!-- 模态框：维保到期提醒 -->
+<div id="modal-maintain-reminder" class="modal hidden"><div class="modal-box wide">
+  <h4>⏰ 维保到期提醒</h4>
+  <p style="font-size:12px;color:#666;margin-bottom:8px">显示30天内到期和已逾期的设备，点击可定位到地图位置</p>
+  <div id="maintain-reminder-body" style="max-height:400px;overflow-y:auto"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-maintain-reminder')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：数据管理 -->
+<div id="modal-data" class="modal hidden"><div class="modal-box">
+  <h4>数据管理</h4>
+  <div style="background:#fef3c7;padding:10px;border-radius:6px;margin:10px 0;font-size:13px">⚠️ 数据存储在浏览器本地，建议定期导出备份。</div>
+  <div style="margin:10px 0"><strong>当前数据统计：</strong><div id="data-stats" style="font-size:13px;margin-top:6px;color:#555"></div></div>
+  <div style="margin:10px 0;padding:10px;background:#f8fafc;border-radius:6px">
+    <strong>📦 本地库更新</strong>
+    <div id="lib-versions" style="font-size:12px;color:#666;margin-top:6px;line-height:1.8">正在检测版本...</div>
+    <div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="checkLibUpdates()">🔍 检查更新</button>
+      <button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="downloadLib('leaflet')">⬇ Leaflet</button>
+      <button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="downloadLib('xlsx')">⬇ XLSX</button>
+      <button class="btn ghost" style="padding:4px 10px;font-size:12px" onclick="downloadLib('dxf')">⬇ DXF解析</button>
+    </div>
+    <div style="font-size:11px;color:#999;margin-top:6px">下载后将文件放入 lib/ 目录覆盖即可</div>
+  </div>
+  <div class="modal-btn-row"><button class="btn primary" onclick="exportJSONBackup()">📤导出JSON</button><button class="btn warn" onclick="importJSONBackup()">📥导入JSON</button><button class="btn ghost" onclick="syncToCloud()">☁️同步到云端</button><button class="btn ghost" onclick="undoLast()">↩ 撤销</button><button class="btn del" onclick="clearAllData()">🗑️清空</button><button class="btn ghost" onclick="closeModal('modal-data')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：批量操作 -->
+<div id="modal-batch" class="modal hidden"><div class="modal-box wide">
+  <h4>📦 批量操作 / 导入 / 复制</h4>
+  <div class="batch-tabs">
+    <button class="batch-tab active" onclick="switchBatchTab('add-b',this)">批量增建</button>
+    <button class="batch-tab" onclick="switchBatchTab('add-f',this)">批量增层</button>
+    <button class="batch-tab" onclick="switchBatchTab('del',this)">批量删除</button>
+    <button class="batch-tab" onclick="switchBatchTab('import',this)">Excel导入</button>
+    <button class="batch-tab" onclick="switchBatchTab('copy',this)">复制模板</button>
+  </div>
+  <div class="batch-panel active" id="batch-add-b"><p style="font-size:13px;color:#666;margin-bottom:6px">每行输入一个建筑名称，批量创建：</p><textarea class="batch-textarea" id="batch-b-names" placeholder="第一教学楼&#10;第二教学楼&#10;实验楼"></textarea><div class="modal-btn-row"><button class="btn primary" onclick="batchAddBuildings()">批量创建建筑</button><button class="btn ghost" onclick="closeModal('modal-batch')">关闭</button></div><div class="batch-result" id="batch-b-result"></div></div>
+  <div class="batch-panel" id="batch-add-f"><label>选择目标建筑</label><select aria-label="batch-f-building" id="batch-f-building"></select><p style="font-size:13px;color:#666;margin:6px 0">每行输入一个楼层名称：</p><textarea class="batch-textarea" id="batch-f-names" placeholder="1F&#10;2F&#10;3F"></textarea><div class="modal-btn-row"><button class="btn primary" onclick="batchAddFloors()">批量创建楼层</button><button class="btn ghost" onclick="closeModal('modal-batch')">关闭</button></div><div class="batch-result" id="batch-f-result"></div></div>
+  <div class="batch-panel" id="batch-del"><p style="font-size:13px;color:#666;margin-bottom:6px">勾选要删除的建筑，可撤销恢复：</p><div class="batch-check-list" id="batch-del-list"></div><div style="margin-top:8px;font-size:12px;color:#666"><label><input aria-label="batch-del-all" type="checkbox" id="batch-del-all" onchange="toggleBatchDelAll(this)"/> 全选</label></div><div class="modal-btn-row"><button class="btn del" onclick="batchDeleteBuildings()">批量删除选中</button><button class="btn ghost" onclick="closeModal('modal-batch')">关闭</button></div><div class="batch-result" id="batch-del-result"></div></div>
+  <div class="batch-panel" id="batch-import"><p style="font-size:13px;color:#666;margin-bottom:6px">1. 先下载模板填写<br>2. 建筑/楼层不存在时<b>自动创建</b><br>3. 坐标X/Y留空则标记为<b>待定位</b>，后续在地图上点击放置<br>4. 除建筑名称、楼层、设施类型外，其余均为选填</p><div class="modal-btn-row" style="margin-top:0"><button class="btn ghost" onclick="downloadImportTemplate()">📥 下载导入模板</button></div><label style="margin-top:10px;display:block">选择Excel文件</label><input aria-label="batch-import-file" type="file" id="batch-import-file" accept=".xlsx,.xls,.csv"/><div class="modal-btn-row"><button class="btn primary" onclick="importDevicesExcel()">开始导入</button><button class="btn ghost" onclick="closeModal('modal-batch')">关闭</button></div><div class="batch-result" id="batch-import-result"></div></div>
+  <div class="batch-panel" id="batch-copy"><p style="font-size:13px;color:#666;margin-bottom:6px">选择建筑作为模板复制，可连续多次复制：</p><label>选择源建筑</label><select aria-label="copy-src-building" id="copy-src-building"></select><label>新建筑名称（留空自动加"副本"）</label><input id="copy-new-name" placeholder="留空则自动命名"/><div style="margin:8px 0;font-size:13px"><label><input aria-label="copy-with-devices" type="checkbox" id="copy-with-devices" checked/> 同时复制设备点位</label><br><label style="margin-top:4px"><input aria-label="copy-with-logs" type="checkbox" id="copy-with-logs"/> 同时复制维保记录</label></div><div class="modal-btn-row"><button class="btn primary" onclick="duplicateBuilding()">复制建筑（可连续点击）</button><button class="btn ghost" onclick="closeModal('modal-batch')">关闭</button></div><div class="batch-result" id="batch-copy-result"></div></div>
+</div></div>
+<!-- 模态框：维保到期提醒 -->
+<div id="modal-maintain-reminder" class="modal hidden"><div class="modal-box wide">
+  <h4>⏰ 维保到期提醒</h4>
+  <p style="font-size:12px;color:#666;margin-bottom:8px">显示30天内到期和已逾期的设备，点击可定位到地图位置</p>
+  <div id="maintain-reminder-body" style="max-height:400px;overflow-y:auto"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-maintain-reminder')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：巡检打卡（支持自定义表单） -->
+<div id="modal-inspect-checkin" class="modal hidden"><div class="modal-box" style="max-width:680px;width:95vw;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;padding:0">
+  <div style="padding:14px 20px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:#f8fafc">
+    <h4 style="margin:0;font-size:16px">📝 补录巡检记录</h4><div style="font-size:11px;color:#99a3af;margin-top:2px">此为事后补录功能，现场巡检请用手机扫码设备二维码</div>
+    <button onclick="closeModal('modal-inspect-checkin')" class="modal-close-btn" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af;padding:0 4px;line-height:1" onmouseover="this.style.color='#333'" onmouseout="this.style.color='#9ca3af'">✕</button>
+  </div>
+  <div style="flex:1;overflow-y:auto;padding:16px 20px">
+    <!-- 设备信息 -->
+    <div id="checkin-device-info" style="padding:12px 14px;background:#f0fdfa;border:1px solid #99f6e4;border-radius:8px;margin-bottom:14px;font-size:13px;color:#0f766e"></div>
+    <!-- 巡检结果 -->
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">巡检结果 *</label>
+      <div style="display:flex;gap:10px">
+        <label id="checkin-result-normal" style="flex:1;padding:12px;border:2px solid #10b981;border-radius:8px;text-align:center;cursor:pointer;background:#ecfdf5" onclick="selectCheckinResult('normal')">
+          <div style="font-size:22px">✅</div><div style="font-size:13px;font-weight:500">正常</div>
+        </label>
+        <label id="checkin-result-fault" style="flex:1;padding:12px;border:2px solid #e5e7eb;border-radius:8px;text-align:center;cursor:pointer;background:#fff" onclick="selectCheckinResult('fault')">
+          <div style="font-size:22px">❌</div><div style="font-size:13px;font-weight:500">故障</div>
+        </label>
+        <label id="checkin-result-maintain" style="flex:1;padding:12px;border:2px solid #e5e7eb;border-radius:8px;text-align:center;cursor:pointer;background:#fff" onclick="selectCheckinResult('maintain-needed')">
+          <div style="font-size:22px">⚠️</div><div style="font-size:13px;font-weight:500">需维保</div>
+        </label>
+      </div>
+    </div>
+    <!-- 自定义表单选择 -->
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">关联自定义表单</label>
+      <div id="checkin-form-selector"></div>
+    </div>
+    <!-- 表单填写区域 -->
+    <div id="checkin-form-area" style="margin-bottom:14px;padding:14px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;display:none"></div>
+    <!-- 备注 -->
+    <div style="margin-bottom:14px">
+      <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px">备注</label>
+      <textarea id="checkin-remark" rows="2" style="width:100%;padding:8px 10px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;resize:vertical;box-sizing:border-box" placeholder="选填，巡检备注信息"></textarea>
+    </div>
+  </div>
+  <div style="padding:12px 20px;border-top:1px solid #e5e7eb;display:flex;justify-content:flex-end;gap:10px;flex-shrink:0;background:#fff">
+    <button onclick="closeModal('modal-inspect-checkin')" style="padding:8px 24px;background:#fff;border:1px solid #d9d9d9;border-radius:4px;font-size:14px;cursor:pointer;color:#333" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#fff'">取消</button>
+    <button onclick="submitInspectCheckin()" style="padding:8px 24px;background:#14b8a6;border:1px solid #14b8a6;border-radius:4px;font-size:14px;cursor:pointer;color:#fff;font-weight:500" onmouseover="this.style.background='#0d9488'" onmouseout="this.style.background='#14b8a6'">提交巡检</button>
+  </div>
+</div></div>
+
+<!-- 模态框：巡检记录 -->
+<div id="modal-inspect-records" class="modal hidden">
+  <div class="modal-box wide resizable-modal" style="position:fixed;top:8vh;left:50%;transform:translateX(-50%);width:1000px;height:600px;max-width:95vw;max-height:85vh;overflow:hidden;display:flex;flex-direction:column;padding:0;margin:0">
+    <div id="inspect-modal-header" style="padding:10px 16px;border-bottom:1px solid #ddd;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;cursor:move;user-select:none;background:#f8f9fa">
+      <div style="flex:0 0 auto"><h4 style="margin:0;font-size:16px">📋 巡检记录</h4></div>
+      <div style="flex:0 0 auto;display:flex;align-items:center;gap:12px">
+        <label style="font-size:13px;color:#555;white-space:nowrap">结果筛选：</label>
+        <select id="inspect-record-filter" onchange="renderInspectRecords()" style="padding:5px 10px;border:1px solid #ccc;border-radius:6px;font-size:13px;background:#fff">
+          <option value="">全部</option>
+          <option value="正常">正常</option>
+          <option value="故障">故障</option>
+          <option value="需维保">需维保</option>
+        </select>
+        <button class="btn primary small" onclick="exportInspectRecordsExcel()" style="margin:0;white-space:nowrap;padding:5px 16px">导出Excel</button>
+        <button class="btn warn small" onclick="cleanupInvalidInspectRecords()" style="margin:0;white-space:nowrap;padding:5px 16px;background:#f59e0b">🧹 清理无效记录</button>
+      </div>
+      <div style="flex:0 0 auto;display:flex;align-items:center;gap:14px">
+        <span id="inspect-record-count" style="color:#666;font-size:13px;white-space:nowrap">共0条</span>
+        <button onclick="closeModal('modal-inspect-records')" style="background:none;border:none;font-size:18px;cursor:pointer;color:#999;padding:4px 8px;line-height:1" onmouseover="this.style.color='#333'" onmouseout="this.style.color='#999'">✕</button>
+      </div>
+    </div>
+    <div id="inspect-records-list" style="flex:1;overflow-x:auto;overflow-y:auto;min-height:0">
+      <div style="color:#999;text-align:center;padding:20px">加载中...</div>
+    </div>
+    <div style="flex-shrink:0;height:24px;background:#e8e8e8;border-top:1px solid #ccc;display:flex;align-items:center;padding:0 10px;position:relative">
+      <span style="font-size:11px;color:#888">拖拽标题栏移动 · 右下角拖拽缩放</span>
+      <div class="resize-handle" title="拖拽缩放" style="width:24px;height:24px;cursor:nwse-resize;position:absolute;right:0;bottom:0;display:flex;align-items:center;justify-content:center;background:#d0d0d0;border-left:1px solid #aaa;border-top:1px solid #aaa">
+        <span style="font-size:14px;color:#555;line-height:1;font-weight:bold">⤡</span>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- 模态框：巡检任务管理 -->
+<div id="modal-inspect-task" class="modal hidden"><div class="modal-box wide">
+  <h4>📋 巡检任务管理</h4>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span style="font-size:12px;color:#666">创建巡检任务，分配给操作员执行</span>
+    <button class="btn primary small" onclick="openCreateTaskModal()">+ 新建任务</button>
+  </div>
+  <div id="inspect-task-list" style="max-height:400px;overflow-y:auto"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-inspect-task')">关闭</button></div>
+</div></div>
+<!-- 模态框：创建巡检任务 -->
+<div id="modal-create-task" class="modal hidden"><div class="modal-box">
+  <h4>➕ 新建巡检任务</h4>
+  <label>任务名称</label><input id="task-name" placeholder="例：9月月度巡检"/>
+  <label>选择建筑（留空=全部）</label><select id="task-building" onchange="updateTaskFloorSelect()"><option value="">全部建筑</option></select>
+  <label>选择楼层（留空=全部）</label><select id="task-floor"><option value="">全部楼层</option></select>
+  <label>设施类型（留空=全部）</label><select id="task-device-type"><option value="">全部类型</option></select>
+  <label>计划日期</label><input type="date" id="task-plan-date"/>
+  <label>负责人（操作员）</label><input id="task-assignee" placeholder="操作员用户名"/>
+  <label>备注</label><textarea id="task-remark" rows="2" placeholder="选填"></textarea>
+  <div class="modal-btn-row"><button class="btn primary" onclick="submitCreateTask()">创建</button><button class="btn ghost" onclick="closeModal('modal-create-task')">取消</button></div>
+</div></div>
+
+<!-- 模态框：统计分析 -->
+<div id="modal-stats" class="modal hidden"><div class="modal-box wide">
+  <h4>📈 统计分析</h4>
+  <div id="stats-panel-content"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-stats')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：表单管理 -->
+<div id="modal-form-manager" class="modal hidden"><div class="modal-box wide" style="max-width:1100px;width:95%;height:85vh;display:flex;flex-direction:column;overflow:hidden">
+  <div style="padding:16px 20px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+    <span style="font-size:17px;font-weight:bold">📝 表单管理</span>
+    <div style="display:flex;gap:8px">
+      <button class="btn ghost small" onclick="showDeletedFormRecords()">📜 已删除表单记录</button>
+      <button class="btn primary small" onclick="createNewForm()">+ 新建表单</button>
+    </div>
+  </div>
+  <div id="form-list-container" style="flex:1;overflow-y:auto;padding:16px 20px;background:#f9fafb">
+    <div style="text-align:center;padding:40px;color:#999">加载中...</div>
+  </div>
+  <div class="modal-btn-row" style="flex-shrink:0"><button class="btn ghost" onclick="closeModal('modal-form-manager')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：已删除表单记录 -->
+<div id="modal-deleted-form-records" class="modal hidden"><div class="modal-box wide" style="max-width:1000px;width:95%;height:80vh;display:flex;flex-direction:column;overflow:hidden">
+  <div style="padding:16px 20px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+    <span style="font-size:17px;font-weight:bold">📜 已删除表单的填写记录</span>
+    <span style="font-size:12px;color:#9ca3af">这些记录的表单模板已被删除，但填写的数据保留了下来</span>
+  </div>
+  <div id="deleted-records-container" style="flex:1;overflow-y:auto;padding:16px 20px;background:#f9fafb">
+    <div style="text-align:center;padding:40px;color:#999">加载中...</div>
+  </div>
+  <div class="modal-btn-row" style="flex-shrink:0"><button class="btn ghost" onclick="closeModal('modal-deleted-form-records')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：字段富文本描述编辑 -->
+<div id="modal-field-rich-desc" class="modal hidden" style="z-index:2000"><div class="modal-box" style="max-width:800px;width:92%;padding:0;overflow:hidden;border-radius:10px">
+  <div style="display:flex;justify-content:space-between;align-items:center;padding:14px 20px;border-bottom:1px solid #e5e7eb;background:#fafafa">
+    <h4 style="margin:0;font-size:16px;font-weight:600;color:#1f2937">编辑字段描述信息</h4>
+    <button onclick="closeModal('modal-field-rich-desc')" style="background:none;border:none;font-size:20px;cursor:pointer;color:#9ca3af;padding:2px 8px;line-height:1;border-radius:4px;transition:all .15s" onmouseover="this.style.background='#e5e7eb';this.style.color='#374151'" onmouseout="this.style.background='none';this.style.color='#9ca3af'">✕</button>
+  </div>
+  <div style="padding:0">
+    <!-- 富文本工具栏 -->
+    <div style="display:flex;align-items:center;gap:2px;padding:6px 10px;background:#f9fafb;border-bottom:1px solid #e5e7eb;flex-wrap:wrap">
+      <select onchange="richTextExec('formatBlock',this.value)" style="padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;background:#fff">
+        <option value="p">段落</option><option value="h1">标题1</option><option value="h2">标题2</option><option value="h3">标题3</option>
+      </select>
+      <select onchange="richTextExec('fontName',this.value)" style="padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;background:#fff">
+        <option value="Microsoft YaHei">微软雅黑</option><option value="SimSun">宋体</option><option value="Arial">Arial</option>
+      </select>
+      <select onchange="richTextExec('fontSize',this.value)" style="padding:3px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;background:#fff">
+        <option value="3">字号</option><option value="2">13px</option><option value="3">16px</option><option value="4">18px</option><option value="5">24px</option>
+      </select>
+      <span style="width:1px;height:16px;background:#d1d5db;margin:0 4px"></span>
+      <button type="button" onclick="richTextExec('bold')" style="width:26px;height:24px;border:none;background:transparent;cursor:pointer;font-weight:bold;font-size:13px;border-radius:4px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">B</button>
+      <button type="button" onclick="richTextExec('italic')" style="width:26px;height:24px;border:none;background:transparent;cursor:pointer;font-style:italic;font-size:13px;border-radius:4px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">I</button>
+      <button type="button" onclick="richTextExec('underline')" style="width:26px;height:24px;border:none;background:transparent;cursor:pointer;text-decoration:underline;font-size:13px;border-radius:4px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">U</button>
+      <button type="button" onclick="richTextExec('strikeThrough')" style="width:26px;height:24px;border:none;background:transparent;cursor:pointer;text-decoration:line-through;font-size:13px;border-radius:4px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">S</button>
+      <span style="width:1px;height:16px;background:#d1d5db;margin:0 4px"></span>
+      <button type="button" onclick="richTextExec('justifyLeft')" style="width:26px;height:24px;border:none;background:transparent;cursor:pointer;font-size:13px;border-radius:4px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">☰</button>
+      <button type="button" onclick="richTextExec('justifyCenter')" style="width:26px;height:24px;border:none;background:transparent;cursor:pointer;font-size:13px;border-radius:4px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">☰</button>
+      <button type="button" onclick="richTextExec('justifyRight')" style="width:26px;height:24px;border:none;background:transparent;cursor:pointer;font-size:13px;border-radius:4px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">☰</button>
+      <span style="width:1px;height:16px;background:#d1d5db;margin:0 4px"></span>
+      <button type="button" onclick="richTextExec('insertUnorderedList')" style="width:26px;height:24px;border:none;background:transparent;cursor:pointer;font-size:13px;border-radius:4px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">•≡</button>
+      <button type="button" onclick="richTextExec('insertOrderedList')" style="width:26px;height:24px;border:none;background:transparent;cursor:pointer;font-size:13px;border-radius:4px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">1≡</button>
+      <span style="width:1px;height:16px;background:#d1d5db;margin:0 4px"></span>
+      <button type="button" onclick="richTextExec('removeFormat')" style="width:26px;height:24px;border:none;background:transparent;cursor:pointer;font-size:13px;border-radius:4px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">Ω</button>
+      <button type="button" onclick="richTextInsertEmoji()" style="width:26px;height:24px;border:none;background:transparent;cursor:pointer;font-size:13px;border-radius:4px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">😊</button>
+      <button type="button" onclick="richTextInsertImage()" style="width:26px;height:24px;border:none;background:transparent;cursor:pointer;font-size:13px;border-radius:4px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">🖼️</button>
+    </div>
+    <!-- 富文本编辑区 -->
+    <div id="field-rich-desc-editor" contenteditable="true" style="min-height:280px;padding:14px 18px;font-size:14px;line-height:1.7;outline:none;background:#fff;overflow-y:auto;max-height:400px"></div>
+  </div>
+  <div style="display:flex;justify-content:flex-end;gap:10px;padding:12px 20px;border-top:1px solid #e5e7eb;background:#fafafa">
+    <button onclick="closeModal('modal-field-rich-desc')" style="padding:8px 20px;background:#fff;border:1px solid #d1d5db;border-radius:6px;font-size:14px;cursor:pointer;color:#374151;transition:all .15s" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background='#fff'">取消</button>
+    <button onclick="saveFieldRichDesc()" style="padding:8px 20px;background:#14b8a6;border:none;border-radius:6px;font-size:14px;cursor:pointer;color:#fff;font-weight:500;transition:all .15s" onmouseover="this.style.background='#0d9488'" onmouseout="this.style.background='#14b8a6'">确定</button>
+  </div>
+</div></div>
+
+<!-- 模态框：表单编辑器 -->
+<div id="modal-form-editor" class="modal hidden"><div class="modal-box wide" style="max-width:1400px;width:97%;height:92vh;display:flex;flex-direction:column;overflow:hidden;border-radius:10px">
+  <!-- 顶部工具栏 -->
+  <div style="padding:10px 20px;border-bottom:1px solid #e8e8e8;display:flex;justify-content:space-between;align-items:center;flex-shrink:0;background:#fff;gap:8px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <button onclick="closeModal('modal-form-editor');closeFormEditor()" style="padding:6px 16px;background:#fff;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;cursor:pointer;color:#333;display:flex;align-items:center;gap:4px" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#fff'">↩ 返回</button>
+      <span id="form-editor-title" style="font-size:15px;font-weight:600;color:#1f2937">编辑表单</span>
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;justify-content:flex-end">
+      <button onclick="undoFormEdit()" style="padding:6px 16px;background:#fff;border:1px solid #d9d9d9;border-radius:6px;font-size:13px;cursor:pointer;color:#333;display:flex;align-items:center;gap:4px" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#fff'">↻ 撤销本次编辑</button>
+      <button onclick="saveForm()" style="padding:6px 20px;background:#14b8a6;border:1px solid #14b8a6;border-radius:6px;font-size:13px;cursor:pointer;color:#fff;font-weight:500;display:flex;align-items:center;gap:4px" onmouseover="this.style.background='#0d9488'" onmouseout="this.style.background='#14b8a6'">💾 保存</button>
+    </div>
+  </div>
+  <!-- 主体：三栏 -->
+  <div style="flex:1;display:flex;overflow:hidden;min-height:0">
+    <!-- 左侧：控件库 -->
+    <div id="field-type-panel" style="width:220px;border-right:1px solid #e8e8e8;padding:12px 10px;overflow-y:auto;background:#fafafa;flex-shrink:0">
+      <div style="font-size:13px;font-weight:600;color:#374151;margin-bottom:10px;padding-left:4px">📦 控件库</div>
+      <div id="field-type-picker" style="display:flex;flex-direction:column;gap:2px"></div>
+    </div>
+    <!-- 中间：画布（三段式纵向排列） -->
+    <div style="flex:1;overflow-y:auto;min-width:0;background:#f5f6f8;padding:16px 20px">
+      <div style="max-width:780px;margin:0 auto;display:flex;flex-direction:column;gap:14px">
+        
+        <!-- ===== 区块1：表单基本信息 ===== -->
+        <div style="background:#fff;border-radius:8px;padding:16px 20px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+          <div style="font-size:15px;font-weight:600;color:#1f2937;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">表单基本信息</div>
+          <!-- 表单名称 -->
+          <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px">
+            <label style="width:80px;text-align:right;font-size:13px;color:#374151;flex-shrink:0"><span style="color:#ef4444">*</span> 表单名称：</label>
+            <input type="text" id="form-name-input" placeholder="填写记录模板名称" style="flex:1;padding:7px 12px;border:1px solid #d9d9d9;border-radius:4px;font-size:14px;text-align:center;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor='#14b8a6';this.style.boxShadow='0 0 0 2px rgba(20,184,166,.12)'" onblur="this.style.borderColor='#d9d9d9';this.style.boxShadow='none'"/>
+          </div>
+          <!-- 所属项目 + 分类 + 状态 -->
+          <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px">
+            <label style="width:80px;text-align:right;font-size:13px;color:#374151;flex-shrink:0"><span style="color:#ef4444">*</span> 所属项目：</label>
+            <div style="flex:1;display:flex;gap:8px">
+              <select id="form-project-select" style="flex:1;padding:7px 10px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;box-sizing:border-box;background:#fff">
+                <option value="">请选择项目</option>
+              </select>
+              <select id="form-category-select" style="width:120px;padding:7px 10px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;box-sizing:border-box;background:#fff">
+                <option value="inspect">巡检表</option>
+                <option value="workorder">维保记录表</option>
+                <option value="accept">验收记录表</option>
+                <option value="check">设备检查表</option>
+                <option value="other">其他</option>
+              </select>
+              <select id="form-status-select" style="width:80px;padding:7px 10px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;box-sizing:border-box;background:#fff">
+                <option value="active">启用</option>
+                <option value="inactive">停用</option>
+              </select>
+            </div>
+          </div>
+          <!-- 表单说明（富文本） -->
+          <div style="margin-bottom:12px;display:flex;align-items:flex-start;gap:10px">
+            <label style="width:80px;text-align:right;padding-top:7px;font-size:13px;color:#374151;flex-shrink:0">表单说明：</label>
+            <div style="flex:1;border:1px solid #d9d9d9;border-radius:4px;overflow:hidden">
+              <div style="display:flex;align-items:center;gap:2px;padding:3px 6px;background:#fafafa;border-bottom:1px solid #e8e8e8;flex-wrap:wrap">
+                <select onchange="richTextExec('formatBlock',this.value)" style="padding:2px 4px;border:1px solid #ddd;border-radius:3px;font-size:11px;background:#fff">
+                  <option value="p">段落</option><option value="h1">标题1</option><option value="h2">标题2</option><option value="h3">标题3</option>
+                </select>
+                <select onchange="richTextExec('fontName',this.value)" style="padding:2px 4px;border:1px solid #ddd;border-radius:3px;font-size:11px;background:#fff">
+                  <option value="Verdana">Verdana</option><option value="Microsoft YaHei">微软雅黑</option><option value="SimSun">宋体</option>
+                </select>
+                <select onchange="richTextExec('fontSize',this.value)" style="padding:2px 4px;border:1px solid #ddd;border-radius:3px;font-size:11px;background:#fff">
+                  <option value="3">字号</option><option value="2">13px</option><option value="3">16px</option><option value="4">18px</option><option value="5">24px</option>
+                </select>
+                <span style="width:1px;height:14px;background:#ddd;margin:0 3px"></span>
+                <button type="button" onclick="richTextExec('bold')" style="width:22px;height:20px;border:none;background:transparent;cursor:pointer;font-weight:bold;font-size:12px;border-radius:3px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">B</button>
+                <button type="button" onclick="richTextExec('italic')" style="width:22px;height:20px;border:none;background:transparent;cursor:pointer;font-style:italic;font-size:12px;border-radius:3px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">I</button>
+                <button type="button" onclick="richTextExec('underline')" style="width:22px;height:20px;border:none;background:transparent;cursor:pointer;text-decoration:underline;font-size:12px;border-radius:3px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">U</button>
+                <button type="button" onclick="richTextExec('strikeThrough')" style="width:22px;height:20px;border:none;background:transparent;cursor:pointer;text-decoration:line-through;font-size:12px;border-radius:3px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">S</button>
+                <span style="width:1px;height:14px;background:#ddd;margin:0 3px"></span>
+                <button type="button" onclick="richTextExec('justifyLeft')" style="width:22px;height:20px;border:none;background:transparent;cursor:pointer;font-size:12px;border-radius:3px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">☰</button>
+                <button type="button" onclick="richTextExec('justifyCenter')" style="width:22px;height:20px;border:none;background:transparent;cursor:pointer;font-size:12px;border-radius:3px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">☰</button>
+                <button type="button" onclick="richTextExec('justifyRight')" style="width:22px;height:20px;border:none;background:transparent;cursor:pointer;font-size:12px;border-radius:3px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">☰</button>
+                <button type="button" onclick="richTextExec('insertUnorderedList')" style="width:22px;height:20px;border:none;background:transparent;cursor:pointer;font-size:12px;border-radius:3px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">•≡</button>
+                <button type="button" onclick="richTextExec('insertOrderedList')" style="width:22px;height:20px;border:none;background:transparent;cursor:pointer;font-size:12px;border-radius:3px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">1≡</button>
+                <button type="button" onclick="richTextExec('removeFormat')" style="width:22px;height:20px;border:none;background:transparent;cursor:pointer;font-size:12px;border-radius:3px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">Ω</button>
+                <button type="button" onclick="richTextInsertEmoji()" style="width:22px;height:20px;border:none;background:transparent;cursor:pointer;font-size:12px;border-radius:3px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">😊</button>
+                <button type="button" onclick="richTextInsertImage()" style="width:22px;height:20px;border:none;background:transparent;cursor:pointer;font-size:12px;border-radius:3px" onmouseover="this.style.background='#e5e7eb'" onmouseout="this.style.background='transparent'">🖼️</button>
+              </div>
+              <div id="form-desc-richtext" contenteditable="true" style="min-height:80px;padding:8px 10px;font-size:13px;line-height:1.6;outline:none;background:#fff"></div>
+            </div>
+          </div>
+          <!-- 表单标签 -->
+          <div style="display:flex;align-items:center;gap:10px">
+            <label style="width:80px;text-align:right;font-size:13px;color:#374151;flex-shrink:0">表单标签：</label>
+            <div id="form-tags-container" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">
+              <button onclick="addFormTag()" style="padding:3px 10px;background:#fff;border:1px solid #d9d9d9;border-radius:4px;font-size:12px;cursor:pointer;color:#666" onmouseover="this.style.borderColor='#14b8a6';this.style.color='#14b8a6'" onmouseout="this.style.borderColor='#d9d9d9';this.style.color='#666'">+ 新标签</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- ===== 区块2：表单结果设置 ===== -->
+        <div style="background:#fff;border-radius:8px;padding:16px 20px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+          <div style="font-size:15px;font-weight:600;color:#1f2937;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">表单结果设置</div>
+          <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px">
+            <label style="width:140px;text-align:right;font-size:13px;color:#374151;flex-shrink:0">是否开启表单结果隐藏：</label>
+            <label style="position:relative;display:inline-block;width:42px;height:20px;flex-shrink:0">
+              <input type="checkbox" id="form-result-hidden" style="opacity:0;width:0;height:0" onchange="toggleResultHiddenSwitch(this)">
+              <span id="result-hidden-slider" style="position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#ccc;border-radius:20px;transition:.3s">
+                <span style="position:absolute;height:16px;width:16px;left:2px;bottom:2px;background:white;border-radius:50%;transition:.3s;box-shadow:0 1px 2px rgba(0,0,0,.2)"></span>
+              </span>
+            </label>
+            <span id="result-hidden-label" style="font-size:13px;color:#9ca3af">否</span>
+          </div>
+          <div style="margin-bottom:12px;display:flex;align-items:center;gap:10px">
+            <label style="width:140px;text-align:right;font-size:13px;color:#374151;flex-shrink:0"><span style="color:#ef4444">*</span> 表单结果说明：</label>
+            <input type="text" id="form-result-desc" value="结果" style="flex:1;max-width:360px;padding:7px 10px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;box-sizing:border-box"/>
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <label style="width:140px;text-align:right;font-size:13px;color:#374151;flex-shrink:0"><span style="color:#ef4444">*</span> 表单结果类型：</label>
+            <select id="form-result-type" style="width:180px;padding:7px 10px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;box-sizing:border-box;background:#fff" onchange="onResultTypeChange(this.value)">
+              <option value="statusGroup">从状态组选择</option>
+              <option value="freeText">自由文本</option>
+              <option value="none">无</option>
+            </select>
+            <span style="font-size:13px;color:#374151">已选择状态组：</span>
+            <input type="text" id="form-result-status-group" placeholder="例：巡检状态" style="width:140px;padding:7px 10px;border:1px solid #d9d9d9;border-radius:4px;font-size:13px;box-sizing:border-box;color:#14b8a6;font-weight:500"/>
+          </div>
+        </div>
+
+        <!-- ===== 区块3：表单内容设置 ===== -->
+        <div style="background:#fff;border-radius:8px;padding:16px 20px;box-shadow:0 1px 2px rgba(0,0,0,.04)">
+          <div style="font-size:15px;font-weight:600;color:#1f2937;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #f0f0f0">表单内容设置</div>
+          <div id="form-fields-list"></div>
+          <!-- 底部：新增分组按钮 -->
+          <div style="margin-top:14px;padding-top:12px;border-top:1px dashed #e5e7eb;display:flex;gap:10px;flex-wrap:wrap">
+            <button onclick="addGroup()" style="padding:6px 16px;background:#fff;border:1px solid #d9d9d9;color:#374151;border-radius:4px;font-size:13px;cursor:pointer" onmouseover="this.style.borderColor='#3b82f6';this.style.color='#3b82f6'" onmouseout="this.style.borderColor='#d9d9d9';this.style.color='#374151'">新增默认分组</button>
+            <button onclick="addGroup('subform')" style="padding:6px 16px;background:#fff;border:1px solid #d9d9d9;color:#374151;border-radius:4px;font-size:13px;cursor:pointer" onmouseover="this.style.borderColor='#8b5cf6';this.style.color='#8b5cf6'" onmouseout="this.style.borderColor='#d9d9d9';this.style.color='#374151'">新增子表单分组</button>
+            <button onclick="addGroup('inspection')" style="padding:6px 16px;background:#fff;border:1px solid #d9d9d9;color:#374151;border-radius:4px;font-size:13px;cursor:pointer" onmouseover="this.style.borderColor='#10b981';this.style.color='#10b981'" onmouseout="this.style.borderColor='#d9d9d9';this.style.color='#374151'">新增检查项分组</button>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    <!-- 右侧：字段属性面板 -->
+    <div style="width:300px;border-left:1px solid #e8e8e8;padding:16px;overflow-y:auto;background:#fff;flex-shrink:0">
+      <div style="font-size:14px;font-weight:600;color:#1f2937;margin-bottom:14px;padding-bottom:8px;border-bottom:1px solid #f0f0f0;text-align:center">字段属性</div>
+      <div id="field-editor-container"></div>
+    </div>
+  </div>
+  <!-- 底部操作栏 -->
+  <div style="padding:10px 20px;border-top:1px solid #e8e8e8;background:#fff;display:flex;justify-content:center;gap:12px;flex-shrink:0">
+    <button onclick="closeModal('modal-form-editor');closeFormEditor()" style="padding:7px 28px;background:#fff;border:1px solid #d9d9d9;border-radius:4px;font-size:14px;cursor:pointer;color:#333" onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background='#fff'">取消</button>
+    <button onclick="saveForm()" style="padding:7px 28px;background:#14b8a6;border:1px solid #14b8a6;border-radius:4px;font-size:14px;cursor:pointer;color:#fff;font-weight:500" onmouseover="this.style.background='#0d9488'" onmouseout="this.style.background='#14b8a6'">保存</button>
+  </div>
+</div></div>
+<!-- 模态框：操作日志 -->
+<div id="modal-oplog" class="modal hidden"><div class="modal-box wide">
+  <h4>📝 操作日志</h4>
+  <p style="font-size:12px;color:#666;margin-bottom:8px">记录所有用户的操作行为，最多显示最近200条</p>
+  <div id="oplog-content"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-oplog')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：项目管理 -->
+<div id="modal-project" class="modal hidden"><div class="modal-box">
+  <h4>📁 项目管理</h4>
+  <p style="font-size:12px;color:#666;margin-bottom:8px">每个项目使用独立数据库，数据完全隔离。创建新项目后数据为空，可从其他项目复制或导入。</p>
+  <div style="margin-bottom:12px;padding:10px;background:#f8fafc;border-radius:6px">
+    <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <label style="font-size:12px;white-space:nowrap">项目名称</label>
+      <input id="project-name-input" placeholder="例：A校区消防管理" style="flex:1;margin:0"/>
+      <button class="btn primary small" onclick="submitCreateProject()">+ 创建空项目</button>
+    </div>
+    <label style="font-size:12px">备注</label>
+    <input id="project-remark-input" placeholder="选填" style="margin:4px 0"/>
+  </div>
+  <div id="project-list" style="max-height:300px;overflow-y:auto"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-project')">关闭</button></div>
+</div></div>
+
+<!-- 账号管理弹窗 -->
+<div id="modal-account" class="modal hidden"><div class="modal-box">
+  <h4>👤 账号管理</h4>
+  <div style="margin-bottom:16px;padding:12px;background:#f0f9ff;border-radius:8px;border:1px solid #bae6fd">
+    <div style="font-weight:bold;margin-bottom:8px">当前登录信息</div>
+    <div id="account-current-info" style="font-size:13px;line-height:1.8"></div>
+  </div>
+  <div style="margin-bottom:16px;padding:12px;background:#f8fafc;border-radius:8px">
+    <div style="font-weight:bold;margin-bottom:8px">修改密码</div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="account-old-pass" type="password" placeholder="原密码" style="flex:1;height:34px;padding:0 10px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;font-size:13px"/>
+      <input id="account-new-pass" type="password" placeholder="新密码(至少6位)" style="flex:1;height:34px;padding:0 10px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;font-size:13px"/>
+      <button class="btn primary" onclick="changePassword()" style="height:34px;padding:0 18px;font-size:13px;white-space:nowrap">修改</button>
+    </div>
+  </div>
+  <div id="account-user-list-section" style="display:none">
+    <div style="font-weight:bold;margin-bottom:8px">用户列表（管理员）</div>
+    <div id="account-user-list" style="max-height:220px;overflow-y:auto;margin-bottom:12px"></div>
+    <div style="padding:12px;background:#f8fafc;border-radius:8px;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:bold;margin-bottom:8px">添加新用户</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <input id="account-new-user" placeholder="用户名" style="flex:1;height:34px;padding:0 10px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;font-size:13px;min-width:0"/>
+        <input id="account-new-pass2" type="password" placeholder="密码" style="flex:1;height:34px;padding:0 10px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;font-size:13px;min-width:0"/>
+        <select id="account-new-role" style="height:34px;padding:0 8px;border:1px solid #ddd;border-radius:6px;box-sizing:border-box;font-size:13px;width:90px;white-space:nowrap">
+          <option value="operator">操作员</option>
+          <option value="admin">管理员</option>
+        </select>
+        <button class="btn primary" onclick="addAccountUser()" style="height:34px;padding:0 18px;font-size:13px;white-space:nowrap">添加</button>
+      </div>
+    </div>
+  </div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-account')">关闭</button></div>
+</div></div>
+
+<!-- 人员管理弹窗 -->
+<div id="modal-staff" class="modal hidden"><div class="modal-box wide" style="max-width:900px">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;padding-right:56px">
+    <h4 style="margin:0">👥 人员管理</h4>
+    <div style="display:flex;gap:8px">
+      <button class="btn ghost small" onclick="syncAllStaffToCloud()" title="把本地所有人员同步到云端">☁️ 一键同步云端</button>
+      <button class="btn primary small" onclick="openStaffEditModal()">+ 添加人员</button>
+    </div>
+  </div>
+  <!-- 顶部统计 -->
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:16px">
+    <div style="background:#eff6ff;padding:14px;border-radius:10px;text-align:center;border:1px solid #bfdbfe">
+      <div style="font-size:28px;font-weight:bold;color:#2563eb" id="staff-count-inspector">0</div>
+      <div style="font-size:13px;color:#1e40af;margin-top:4px">👷 巡检员</div>
+    </div>
+    <div style="background:#fff7ed;padding:14px;border-radius:10px;text-align:center;border:1px solid #fed7aa">
+      <div style="font-size:28px;font-weight:bold;color:#ea580c" id="staff-count-repairer">0</div>
+      <div style="font-size:13px;color:#9a3412;margin-top:4px">🔧 维修员</div>
+    </div>
+    <div style="background:#f0fdf4;padding:14px;border-radius:10px;text-align:center;border:1px solid #bbf7d0">
+      <div style="font-size:28px;font-weight:bold;color:#16a34a" id="staff-count-acceptor">0</div>
+      <div style="font-size:13px;color:#166534;margin-top:4px">✅ 验收员</div>
+    </div>
+  </div>
+  <!-- 人员列表 -->
+  <div id="staff-list" style="max-height:400px;overflow-y:auto"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-staff')">关闭</button></div>
+</div></div>
+
+<!-- 派单弹窗 -->
+<div id="modal-assign" class="modal hidden" style="z-index:2000"><div class="modal-box" style="max-width:420px">
+  <h4>📋 工单派单</h4>
+  <input type="hidden" id="assign-order-id"/>
+  <div style="background:#f8fafc;padding:12px;border-radius:8px;margin-bottom:16px;font-size:13px;color:#475569" id="assign-order-info"></div>
+  <label>选择维修人员 <span style="color:#ef4444">*</span></label>
+  <select id="assign-repairer" style="height:40px;padding:0 12px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:14px;width:100%;margin-bottom:16px">
+    <option value="">请选择维修人员</option>
+  </select>
+  <div class="modal-btn-row">
+    <button class="btn primary" onclick="confirmAssign()">确认派单</button>
+    <button class="btn ghost" onclick="closeModal('modal-assign')">取消</button>
+  </div>
+</div></div>
+
+<!-- 人员编辑弹窗 -->
+<div id="modal-staff-edit" class="modal hidden"><div class="modal-box" style="max-width:480px">
+  <h4 id="staff-edit-title">添加人员</h4>
+  <input type="hidden" id="staff-edit-id"/>
+  <label>姓名 <span style="color:#ef4444">*</span></label>
+  <input id="staff-name" placeholder="请输入姓名" style="height:38px;padding:0 12px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:14px;width:100%"/>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+    <div>
+      <label>工号 <span style="color:#ef4444">*</span></label>
+      <input id="staff-work-id" placeholder="扫码登录工号" style="height:38px;padding:0 12px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:14px;width:100%"/>
+    </div>
+    <div>
+      <label>密码 <span style="color:#ef4444">*</span></label>
+      <input id="staff-password" type="password" placeholder="扫码登录密码" style="height:38px;padding:0 12px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:14px;width:100%"/>
+    </div>
+  </div>
+  <label>手机号</label>
+  <input id="staff-phone" placeholder="请输入手机号（选填）" style="height:38px;padding:0 12px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:14px;width:100%"/>
+  <label>所属岗位（可多选）</label>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:8px 0 16px">
+    <label style="display:flex;align-items:center;gap:8px;padding:12px;border:2px solid #e5e7eb;border-radius:10px;cursor:pointer;transition:all .2s" id="staff-role-inspector-label">
+      <input type="checkbox" id="staff-role-inspector" style="width:18px;height:18px;accent-color:#2563eb"/>
+      <div>
+        <div style="font-size:15px;font-weight:500">👷 巡检员</div>
+        <div style="font-size:11px;color:#999">负责巡检打卡</div>
+      </div>
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;padding:12px;border:2px solid #e5e7eb;border-radius:10px;cursor:pointer;transition:all .2s" id="staff-role-repairer-label">
+      <input type="checkbox" id="staff-role-repairer" style="width:18px;height:18px;accent-color:#ea580c"/>
+      <div>
+        <div style="font-size:15px;font-weight:500">🔧 维修员</div>
+        <div style="font-size:11px;color:#999">负责故障维修</div>
+      </div>
+    </label>
+    <label style="display:flex;align-items:center;gap:8px;padding:12px;border:2px solid #e5e7eb;border-radius:10px;cursor:pointer;transition:all .2s" id="staff-role-acceptor-label">
+      <input type="checkbox" id="staff-role-acceptor" style="width:18px;height:18px;accent-color:#16a34a"/>
+      <div>
+        <div style="font-size:15px;font-weight:500">✅ 验收员</div>
+        <div style="font-size:11px;color:#999">负责维修验收</div>
+      </div>
+    </label>
+  </div>
+  <label>备注</label>
+  <textarea id="staff-remark" rows="2" placeholder="选填，如：负责A栋、联系电话等" style="padding:10px 12px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:14px;width:100%;resize:vertical"></textarea>
+  <div class="modal-btn-row">
+    <button class="btn primary" onclick="saveStaff()">保存</button>
+    <button class="btn ghost" onclick="closeModal('modal-staff-edit')">取消</button>
+  </div>
+</div></div>
+
+<input aria-label="json-import-input" type="file" id="json-import-input" accept=".json" style="display:none"/>
+<input aria-label="dxf-file-input" type="file" id="dxf-file-input" accept=".dxf" style="display:none" onchange="importDxfFile()"/>
+
+<!-- 本地库 -->
+<script src="lib/leaflet.js"></script>
+<script src="lib/xlsx.full.min.js"></script>
+<script src="lib/qrcode.min.js"></script>
+<script src="lib/dxf-parser.min.js"></script>
+<script src="js/tcb.js"></script>
+<!-- 业务模块（按依赖顺序加载） -->
+<script src="js/db.js"></script>
+<script src="js/form.js"></script>
+<script src="js/map.js"></script>
+<script src="js/search.js"></script>
+<script src="js/ui.js"></script>
+<script src="js/vector.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/dxf.js"></script>
+<script src="js/export.js"></script>
+<script src="js/batch.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/maintain.js"></script>
+<script src="js/stats.js"></script>
+<script src="js/mobile.js"></script>
+<script src="js/collab.js"></script>
+<script src="js/cloud.js"></script>
+<script src="js/app.js"></script>
+<!-- 模态框：巡检计划管理 -->
+<div id="modal-inspect-plan" class="modal hidden"><div class="modal-box wide">
+  <h4>📅 巡检计划管理</h4>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+    <span style="font-size:12px;color:#666">设置周期性巡检计划，到期自动生成巡检任务</span>
+    <button class="btn primary small" onclick="openCreatePlanModal()">+ 新建计划</button>
+  </div>
+  <div id="inspect-plan-list" style="max-height:400px;overflow-y:auto"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-inspect-plan')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：创建巡检计划 -->
+<div id="modal-create-plan" class="modal hidden"><div class="modal-box">
+  <h4>➕ 新建巡检计划</h4>
+  <label>计划名称</label><input id="plan-name" placeholder="例：9月月度巡检"/>
+  <label>巡检周期</label>
+  <select id="plan-cycle">
+    <option value="weekly">每周</option>
+    <option value="monthly" selected>每月</option>
+    <option value="quarterly">每季度</option>
+    <option value="yearly">每年</option>
+  </select>
+  <label>选择建筑（留空=全部）</label><select id="plan-building" onchange="updatePlanFloorSelect()"><option value="">全部建筑</option></select>
+  <label>选择楼层（留空=全部）</label><select id="plan-floor"><option value="">全部楼层</option></select>
+  <label>负责人（操作员）</label><input id="plan-assignee" placeholder="操作员用户名"/>
+  <label>首次执行日期</label><input type="date" id="plan-next-date"/>
+  <div class="modal-btn-row"><button class="btn primary" onclick="submitCreatePlan()">创建</button><button class="btn ghost" onclick="closeModal('modal-create-plan')">取消</button></div>
+</div></div>
+
+<!-- 模态框：隐患整改管理 -->
+<div id="modal-hidden-danger" class="modal hidden"><div class="modal-box wide">
+  <h4>⚠️ 隐患整改管理</h4>
+  <div style="margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <label>状态筛选：</label>
+    <select id="hidden-danger-filter" onchange="renderHiddenDangerList()" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px">
+      <option value="">全部</option>
+      <option value="pending">待整改</option>
+      <option value="processing">整改中</option>
+      <option value="completed">待验收</option>
+      <option value="accepted">已验收</option>
+    </select>
+    <button class="btn primary small" onclick="openCreateDangerModal()">+ 新建隐患单</button>
+  </div>
+  <div id="hidden-danger-list" style="max-height:400px;overflow-y:auto"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-hidden-danger')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：编辑/创建隐患单 -->
+<div id="modal-edit-danger" class="modal hidden"><div class="modal-box">
+  <h4 id="danger-modal-title">隐患整改单</h4>
+  <input type="hidden" id="danger-id"/>
+  <input type="hidden" id="danger-device-id"/>
+  <input type="hidden" id="danger-log-id"/>
+  <input type="hidden" id="danger-building-name"/>
+  <input type="hidden" id="danger-floor-name"/>
+  <input type="hidden" id="danger-device-type"/>
+  <input type="hidden" id="danger-device-code"/>
+  <label>标题</label><input id="danger-title" placeholder="例：消火栓压力不足"/>
+  <label>隐患描述</label><textarea id="danger-desc" rows="3" placeholder="详细描述隐患情况"></textarea>
+  <label>隐患等级</label>
+  <select id="danger-level">
+    <option value="normal">一般</option>
+    <option value="major">重大</option>
+  </select>
+  <label>整改负责人</label><input id="danger-assignee" placeholder="操作员用户名"/>
+  <label>整改期限</label><input type="date" id="danger-deadline"/>
+  <div class="modal-btn-row">
+    <button class="btn primary" onclick="submitDangerForm()">保存</button>
+    <button class="btn ghost" onclick="closeModal('modal-edit-danger')">取消</button>
+  </div>
+</div></div>
+<!-- 模态框：设备档案详情 -->
+<div id="modal-device-archive" class="modal hidden"><div class="modal-box wide" style="max-width:800px">
+  <div style="padding:14px 18px;border-bottom:1px solid #eee;display:flex;justify-content:space-between;align-items:center">
+    <div>
+      <div id="archive-device-name" style="font-size:16px;font-weight:bold"></div>
+      <div style="font-size:12px;color:#666;margin-top:2px">
+        <span id="archive-device-location"></span>
+        <span style="margin-left:10px">状态：<span id="archive-device-status" style="font-weight:bold"></span></span>
+      </div>
+    </div>
+    <button style="background:none;border:none;font-size:18px;cursor:pointer;color:#666;padding:4px 8px" onclick="closeModal('modal-device-archive')">✕</button>
+  </div>
+  <div style="padding:10px 18px;border-bottom:1px solid #eee;display:flex;gap:6px">
+    <button class="archive-tab" data-tab="info" onclick="switchArchiveTab('info')" style="padding:6px 16px;border:none;border-radius:6px;cursor:pointer;font-size:13px;background:#2563eb;color:#fff">基本信息</button>
+    <button class="archive-tab" data-tab="maintain" onclick="switchArchiveTab('maintain')" style="padding:6px 16px;border:none;border-radius:6px;cursor:pointer;font-size:13px;background:#f3f4f6;color:#374151">维保记录</button>
+    <button class="archive-tab" data-tab="inspect" onclick="switchArchiveTab('inspect')" style="padding:6px 16px;border:none;border-radius:6px;cursor:pointer;font-size:13px;background:#f3f4f6;color:#374151">巡检记录</button>
+    <button class="archive-tab" data-tab="danger" onclick="switchArchiveTab('danger')" style="padding:6px 16px;border:none;border-radius:6px;cursor:pointer;font-size:13px;background:#f3f4f6;color:#374151">隐患整改</button>
+  </div>
+  <div id="archive-tab-content" style="padding:16px 18px;max-height:400px;overflow-y:auto"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-device-archive')">关闭</button></div>
+</div></div>
+<!-- 模态框：维保工单管理 -->
+<div id="modal-workorder" class="modal hidden"><div class="modal-box wide">
+  <h4>🔧 维保工单管理</h4>
+  <div style="margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <label>状态筛选：</label>
+    <select id="workorder-filter" onchange="renderWorkOrderList()" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px">
+      <option value="">全部</option>
+      <option value="pending">待派单</option>
+      <option value="processing">进行中</option>
+      <option value="completed">待验收</option>
+      <option value="accepted">已验收</option>
+    </select>
+    <button class="btn primary small" onclick="openCreateWorkOrderModal()">+ 新建工单</button>
+  </div>
+  <div id="workorder-list" style="max-height:400px;overflow-y:auto"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-workorder')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：历史档案 -->
+<div id="modal-archive" class="modal hidden"><div class="modal-box wide">
+  <h4>📚 维修历史档案（只读，不可删除）</h4>
+  <div style="margin-bottom:12px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+    <label>类型筛选：</label>
+    <select id="archive-filter" onchange="renderArchiveList()" style="padding:6px 10px;border:1px solid #ddd;border-radius:6px">
+      <option value="">全部</option>
+      <option value="repair">故障维修</option>
+      <option value="maintain">定期维保</option>
+      <option value="emergency">紧急抢修</option>
+    </select>
+    <input type="text" id="archive-search" placeholder="搜索设备/位置/人员..." oninput="renderArchiveList()" style="flex:1;min-width:150px;padding:6px 10px;border:1px solid #ddd;border-radius:6px"/>
+    <button class="btn primary small" onclick="exportArchiveExcel()">📥 导出Excel</button>
+    <button class="btn small" onclick="importHistoryToArchive()">📂 导入历史数据</button>
+    <span id="archive-count" style="margin-left:auto;color:#666;font-size:13px">共0条</span>
+  </div>
+  <div style="background:#fef3c7;padding:8px 12px;border-radius:6px;margin-bottom:10px;font-size:12px;color:#92400e">
+    💡 工单验收通过后自动归档到此。档案独立存储，删除工单不影响历史记录。如需彻底清除，请联系管理员清除浏览器数据。
+  </div>
+  <div id="archive-list" style="max-height:450px;overflow-y:auto"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-archive')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：编辑/创建工单 -->
+<div id="modal-edit-workorder" class="modal hidden"><div class="modal-box">
+  <h4 id="wo-modal-title">维保工单</h4>
+  <input type="hidden" id="wo-id"/>
+  <input type="hidden" id="wo-device-id"/>
+  <input type="hidden" id="wo-building-name"/>
+  <input type="hidden" id="wo-floor-name"/>
+  <input type="hidden" id="wo-device-type"/>
+  <input type="hidden" id="wo-device-code"/>
+  <label>工单标题</label><input id="wo-title" placeholder="例：消火栓漏水维修"/>
+  <label>工单类型</label>
+  <select id="wo-type">
+    <option value="repair">故障维修</option>
+    <option value="maintain">定期维保</option>
+    <option value="emergency">紧急抢修</option>
+  </select>
+  <label>优先级</label>
+  <select id="wo-priority">
+    <option value="normal">一般</option>
+    <option value="urgent">紧急</option>
+  </select>
+  <label>维修负责人</label><input id="wo-assignee" placeholder="维修人员用户名，可留空待派单"/>
+  <label>问题描述</label><textarea id="wo-desc" rows="3" placeholder="详细描述故障情况"></textarea>
+  <div class="modal-btn-row">
+    <button class="btn primary" onclick="submitWorkOrder()">保存</button>
+    <button class="btn ghost" onclick="closeModal('modal-edit-workorder')">取消</button>
+  </div>
+</div></div>
+
+<!-- 模态框：维修完成 -->
+<div id="modal-complete-workorder" class="modal hidden" style="z-index:2000"><div class="modal-box" style="max-width:500px">
+  <h4>🔧 维修完成</h4>
+  <input type="hidden" id="complete-wo-id"/>
+  <div style="background:#eff6ff;padding:12px;border-radius:8px;margin-bottom:12px;font-size:13px;color:#1e40af">
+    <div style="font-weight:bold;margin-bottom:4px">📋 工单信息</div>
+    <div id="complete-wo-info"></div>
+  </div>
+  <label>维修说明 <span style="color:#ef4444">*</span></label>
+  <textarea id="complete-description" rows="3" placeholder="请详细描述维修过程、更换的配件、测试结果等"></textarea>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:10px">
+    <div>
+      <label>维修费用（元）</label>
+      <input type="number" id="complete-cost" value="0" min="0" step="0.01" style="height:38px;padding:0 12px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:14px;width:100%"/>
+    </div>
+    <div>
+      <label>更换配件（选填）</label>
+      <input type="text" id="complete-parts" placeholder="如：灭火器×2,喷头×1" style="height:38px;padding:0 12px;border:1px solid #ddd;border-radius:8px;box-sizing:border-box;font-size:14px;width:100%"/>
+    </div>
+  </div>
+  <div style="margin-top:12px;padding:10px;background:#fef3c7;border-radius:6px;font-size:12px;color:#92400e">
+    💡 提交后将自动进入验收环节，验收人员可查看本次维修的全部信息
+  </div>
+  <!-- 关联自定义表单 -->
+  <div style="margin-top:12px;padding:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:6px">
+    <div style="font-size:13px;font-weight:600;color:#334155;margin-bottom:8px">📋 维保记录表（选填）</div>
+    <div id="complete-form-selector" style="margin-bottom:8px"></div>
+    <div id="complete-form-area" style="display:none;padding:10px;background:#fff;border:1px solid #e2e8f0;border-radius:4px;max-height:300px;overflow-y:auto"></div>
+  </div>
+  <div class="modal-btn-row">
+    <button class="btn primary" onclick="submitCompleteWorkOrder()">提交维修完成</button>
+    <button class="btn ghost" onclick="closeModal('modal-complete-workorder')">取消</button>
+  </div>
+</div></div>
+
+<!-- 模态框：工单验收（含拍照留证） -->
+<div id="modal-accept-workorder" class="modal hidden" style="z-index:2000"><div class="modal-box">
+  <h4>✅ 工单验收</h4>
+  <input type="hidden" id="accept-wo-id"/>
+  <div style="background:#f0fdf4;padding:12px;border-radius:8px;margin-bottom:12px;font-size:13px;color:#166534">
+    <div style="font-weight:bold;margin-bottom:4px">📋 工单信息</div>
+    <div id="accept-wo-info"></div>
+  </div>
+  <label>验收意见（选填）</label>
+  <textarea id="accept-remark" rows="2" placeholder="验收结果说明，如：维修合格、已恢复正常等"></textarea>
+  <label style="margin-top:10px">📷 现场照片（选填，可拍照或上传）</label>
+  <div style="display:flex;gap:10px;margin:8px 0;flex-wrap:wrap">
+    <label style="background:#3b82f6;color:#fff;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:13px">
+      📷 拍照/上传
+      <input type="file" id="accept-photo" accept="image/*" capture="environment" style="display:none" onchange="onAcceptPhotoChange(event)"/>
+    </label>
+    <button class="btn ghost small" onclick="clearAcceptPhoto()">清除照片</button>
+  </div>
+  <div id="accept-photo-preview" style="display:none;margin:10px 0;text-align:center">
+    <img id="accept-photo-img" style="max-width:100%;max-height:200px;border-radius:8px;border:1px solid #ddd"/>
+  <!-- 关联自定义验收表单 -->
+  <div style="margin-top:12px;padding:12px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px">
+    <div style="font-size:13px;font-weight:600;color:#166534;margin-bottom:8px">📋 验收记录表（选填）</div>
+    <div id="accept-form-selector" style="margin-bottom:8px"></div>
+    <div id="accept-form-area" style="display:none;padding:10px;background:#fff;border:1px solid #bbf7d0;border-radius:4px;max-height:300px;overflow-y:auto"></div>
+  </div>
+  </div>
+  <div class="modal-btn-row">
+    <button class="btn primary" onclick="submitAcceptWorkOrder()">确认验收通过</button>
+    <button class="btn ghost" onclick="closeModal('modal-accept-workorder')">取消</button>
+  </div>
+</div></div>
+
+<!-- 模态框：检测报告生成 -->
+<div id="modal-report" class="modal hidden"><div class="modal-box">
+  <h4>📄 消防设施检测报告</h4>
+  <p style="font-size:13px;color:#666;margin-bottom:15px">自动汇总当前周期数据，生成标准格式检测报告，可打印或导出PDF</p>
+  <label>报告周期</label>
+  <div style="display:flex;gap:10px;margin:10px 0">
+    <button class="btn primary" style="flex:1" onclick="generateInspectionReport('monthly')">📅 月度报告</button>
+    <button class="btn primary" style="flex:1" onclick="generateInspectionReport('quarterly')">📆 季度报告</button>
+    <button class="btn primary" style="flex:1" onclick="generateInspectionReport('yearly')">🗓️ 年度报告</button>
+  </div>
+  <div style="padding:10px;background:#f8fafc;border-radius:6px;font-size:12px;color:#666;margin-top:15px">
+    <div style="font-weight:bold;margin-bottom:6px">报告包含内容：</div>
+    <div>• 设施总体情况（完好率统计）</div>
+    <div>• 巡检执行情况（任务完成率）</div>
+    <div>• 隐患整改情况（整改完成率）</div>
+    <div>• 维保工单情况（费用统计）</div>
+    <div>• 维保到期预警</div>
+    <div>• 结论与建议</div>
+  </div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-report')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：通知设置 -->
+<div id="modal-notify-settings" class="modal hidden"><div class="modal-box">
+  <h4>🔔 微信通知设置</h4>
+  <label style="display:flex;align-items:center;gap:8px"><input type="checkbox" id="notify-enabled"/> 启用微信通知</label>
+  <label>推送方式</label>
+  <select id="notify-provider" onchange="updateNotifyProviderUI()">
+    <option value="wecom">企业微信机器人</option>
+    <option value="serverchan">Server酱（方糖，推个人微信）</option>
+  </select>
+  <div id="wecom-section" style="margin-top:10px">
+    <label>企业微信机器人 Webhook 地址</label>
+    <input id="notify-wecom-webhook" placeholder="https://qyapi.weixin.qq.com/cgi-bin/webhook/send?key=xxx"/>
+    <div style="font-size:11px;color:#999;margin-top:4px">在企业微信群 → 右键 → 添加群机器人 → 复制Webhook地址</div>
+  </div>
+  <div id="serverchan-section" style="margin-top:10px;display:none">
+    <label>Server酱 SendKey</label>
+    <input id="notify-serverchan-key" placeholder="SCTxxxxxxxxxxx"/>
+    <div style="font-size:11px;color:#999;margin-top:4px">访问 sct.ftqq.com 注册获取SendKey，消息推送到个人微信</div>
+  </div>
+  <div style="margin-top:15px;display:flex;gap:10px">
+    <button class="btn" onclick="testWechatNotify()">📤 发送测试消息</button>
+  </div>
+  <div style="padding:10px;background:#fffbeb;border-radius:6px;font-size:12px;color:#92400e;margin-top:15px">
+    <div style="font-weight:bold;margin-bottom:4px">💡 通知触发场景：</div>
+    <div>• 新工单创建时通知</div>
+    <div>• 工单派单时通知维修人</div>
+    <div>• 维保到期前7天自动提醒（每天一次）</div>
+  </div>
+  <div class="modal-btn-row">
+    <button class="btn primary" onclick="saveNotifySettings()">保存</button>
+    <button class="btn ghost" onclick="closeModal('modal-notify-settings')">取消</button>
+  </div>
+</div></div>
+<!-- 模态框：备件库存管理 -->
+<div id="modal-parts" class="modal hidden"><div class="modal-box wide">
+  <h4>📦 备件库存管理</h4>
+  <div style="margin-bottom:12px;display:flex;gap:10px">
+    <button class="btn primary small" onclick="openAddPartModal()">+ 添加备件</button>
+    <button class="btn small" onclick="openPartsRecords()">📋 出入库记录</button>
+  </div>
+  <div id="parts-list" style="max-height:400px;overflow-y:auto"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-parts')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：添加/编辑备件 -->
+<div id="modal-add-part" class="modal hidden"><div class="modal-box">
+  <h4>添加备件</h4>
+  <input type="hidden" id="part-id"/>
+  <label>备件名称</label><input id="part-name" placeholder="例：灭火器"/>
+  <label>规格型号</label><input id="part-spec" placeholder="例：MFZ/ABC4"/>
+  <label>分类</label><select id="part-category"><option>灭火器材</option><option>水带接口</option><option>报警设备</option><option>应急照明</option><option>其他</option></select>
+  <div style="display:flex;gap:10px">
+    <div style="flex:1"><label>单位</label><input id="part-unit" value="个"/></div>
+    <div style="flex:1"><label>初始库存</label><input type="number" id="part-stock" value="0"/></div>
+  </div>
+  <div style="display:flex;gap:10px">
+    <div style="flex:1"><label>最低库存预警</label><input type="number" id="part-min-stock" value="0"/></div>
+    <div style="flex:1"><label>单价(元)</label><input type="number" id="part-price" value="0"/></div>
+  </div>
+  <label>存放位置</label><input id="part-location" placeholder="例：1号楼器材室"/>
+  <label>备注</label><textarea id="part-remark" rows="2"></textarea>
+  <div class="modal-btn-row"><button class="btn primary" onclick="submitAddPart()">保存</button><button class="btn ghost" onclick="closeModal('modal-add-part')">取消</button></div>
+</div></div>
+
+<!-- 模态框：出入库 -->
+<div id="modal-stock" class="modal hidden"><div class="modal-box">
+  <h4 id="stock-modal-title">备件出入库</h4>
+  <input type="hidden" id="stock-part-id"/>
+  <input type="hidden" id="stock-type"/>
+  <label>数量</label><input type="number" id="stock-qty" placeholder="请输入数量" min="1"/>
+  <label>备注</label><textarea id="stock-remark" rows="2" placeholder="例：采购入库 / 维修领用"></textarea>
+  <div class="modal-btn-row"><button class="btn primary" onclick="submitStock()">确认</button><button class="btn ghost" onclick="closeModal('modal-stock')">取消</button></div>
+</div></div>
+
+<!-- 模态框：出入库记录 -->
+<div id="modal-parts-records" class="modal hidden"><div class="modal-box wide">
+  <h4>📋 出入库记录（最近50条）</h4>
+  <div id="parts-records-list" style="max-height:400px;overflow-y:auto"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-parts-records')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：应急预案管理 -->
+<div id="modal-emergency" class="modal hidden"><div class="modal-box wide">
+  <h4>🚨 应急预案管理</h4>
+  <div style="margin-bottom:12px;display:flex;gap:10px">
+    <button class="btn primary small" onclick="openAddPlanModal()">+ 新建预案</button>
+    <button class="btn small" onclick="openAddDrillModal()">+ 记录演练</button>
+  </div>
+  <div style="display:flex;gap:15px">
+    <div style="flex:1">
+      <div style="font-weight:bold;margin-bottom:8px;color:#2563eb">📄 应急预案</div>
+      <div id="emergency-plan-list" style="max-height:350px;overflow-y:auto"></div>
+    </div>
+    <div style="flex:1">
+      <div style="font-weight:bold;margin-bottom:8px;color:#d97706">🎯 演练记录</div>
+      <div id="drill-list" style="max-height:350px;overflow-y:auto"></div>
+    </div>
+  </div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-emergency')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：编辑预案 -->
+<div id="modal-edit-plan" class="modal hidden"><div class="modal-box">
+  <h4>应急预案</h4>
+  <input type="hidden" id="plan-id"/>
+  <label>预案名称</label><input id="plan-title" placeholder="例：火灾应急预案"/>
+  <label>预案类型</label><select id="plan-type"><option>火灾</option><option>地震</option><option>燃气泄漏</option><option>电梯困人</option><option>其他</option></select>
+  <label>适用场景</label><input id="plan-applicable" placeholder="例：办公楼火灾疏散"/>
+  <label>预案内容</label><textarea id="plan-content" rows="8" placeholder="详细描述应急处置流程、人员分工、疏散路线等"></textarea>
+  <div class="modal-btn-row"><button class="btn primary" onclick="submitEmergencyPlan()">保存</button><button class="btn ghost" onclick="closeModal('modal-edit-plan')">取消</button></div>
+</div></div>
+
+<!-- 模态框：查看预案 -->
+<div id="modal-plan-view" class="modal hidden"><div class="modal-box">
+  <h4 id="plan-view-title">预案详情</h4>
+  <div style="margin-bottom:10px">
+    <span style="background:#eff6ff;color:#2563eb;padding:2px 10px;border-radius:10px;font-size:12px" id="plan-view-type"></span>
+    <span style="margin-left:10px;color:#666;font-size:12px">适用：<span id="plan-view-applicable"></span></span>
+  </div>
+  <div id="plan-view-content" style="padding:15px;background:#f8fafc;border-radius:8px;line-height:1.8;white-space:pre-wrap;max-height:400px;overflow-y:auto"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-plan-view')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：编辑演练记录 -->
+<div id="modal-edit-drill" class="modal hidden"><div class="modal-box">
+  <h4>应急演练记录</h4>
+  <input type="hidden" id="drill-id"/>
+  <input type="hidden" id="drill-plan-id"/>
+  <label>演练名称/对应预案</label><input id="drill-plan-title" placeholder="例：火灾疏散演练"/>
+  <div style="display:flex;gap:10px">
+    <div style="flex:1"><label>演练日期</label><input type="date" id="drill-date"/></div>
+    <div style="flex:1"><label>演练地点</label><input id="drill-location" placeholder="例：1号楼大厅"/></div>
+  </div>
+  <label>参与人员</label><input id="drill-participants" placeholder="例：全体员工30人"/>
+  <label>演练内容</label><textarea id="drill-content" rows="3" placeholder="演练过程描述"></textarea>
+  <label>演练结果</label><textarea id="drill-result" rows="2" placeholder="演练效果评估"></textarea>
+  <label>存在问题</label><textarea id="drill-problems" rows="2" placeholder="演练中发现的问题"></textarea>
+  <label>改进措施</label><textarea id="drill-improvements" rows="2" placeholder="后续改进计划"></textarea>
+  <div class="modal-btn-row"><button class="btn primary" onclick="submitDrillRecord()">保存</button><button class="btn ghost" onclick="closeModal('modal-edit-drill')">取消</button></div>
+</div></div>
+
+<!-- 模态框：物联网管理 -->
+<div id="modal-iot" class="modal hidden"><div class="modal-box wide">
+  <h4>📡 物联网设备管理</h4>
+  <div style="margin-bottom:12px;display:flex;gap:10px">
+    <button class="btn primary small" onclick="openAddIotModal()">+ 添加设备</button>
+    <button class="btn small" onclick="refreshIotDevices()">🔄 刷新状态</button>
+  </div>
+  <div id="iot-device-list" style="max-height:400px;overflow-y:auto"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-iot')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：添加物联网设备 -->
+<div id="modal-add-iot" class="modal hidden"><div class="modal-box">
+  <h4>添加物联网设备</h4>
+  <input type="hidden" id="iot-id"/>
+  <label>设备名称</label><input id="iot-name" placeholder="例：1号楼烟感探测器"/>
+  <label>设备类型</label><select id="iot-type"><option>烟感</option><option>温感</option><option>水压</option><option>摄像头</option><option>报警主机</option></select>
+  <label>设备编号</label><input id="iot-code" placeholder="例：IOT-001"/>
+  <label>安装位置</label><input id="iot-location" placeholder="例：1号楼3层走廊"/>
+  <div class="modal-btn-row"><button class="btn primary" onclick="submitIotDevice()">保存</button><button class="btn ghost" onclick="closeModal('modal-add-iot')">取消</button></div>
+</div></div>
+
+<!-- 模态框：AI识别 -->
+<div id="modal-ai" class="modal hidden"><div class="modal-box wide">
+  <h4>🤖 AI智能识别</h4>
+  <div style="display:flex;gap:15px">
+    <div style="flex:1">
+      <div style="margin-bottom:10px;font-weight:bold">上传图片</div>
+      <div id="ai-preview" style="margin-bottom:10px"></div>
+      <input type="file" id="ai-image-input" accept="image/*" onchange="handleAIImageUpload(event)" style="width:100%"/>
+      <div style="margin-top:15px">
+        <div style="font-weight:bold;margin-bottom:8px">识别历史</div>
+        <div id="ai-history-list" style="max-height:200px;overflow-y:auto;border:1px solid #eee;border-radius:6px"></div>
+      </div>
+    </div>
+    <div style="flex:1">
+      <div style="margin-bottom:10px;font-weight:bold">识别结果</div>
+      <div id="ai-result"></div>
+    </div>
+  </div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-ai')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：巡检路线管理 -->
+<div id="modal-route" class="modal hidden"><div class="modal-box">
+  <h4>🗺️ 巡检路线管理</h4>
+  <div style="margin-bottom:12px">
+    <button class="btn primary small" onclick="openCreateRouteModal()">+ 创建路线</button>
+  </div>
+  <div id="route-list" style="max-height:400px;overflow-y:auto"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-route')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：创建巡检路线 -->
+<div id="modal-create-route" class="modal hidden"><div class="modal-box">
+  <h4>创建巡检路线</h4>
+  <label>路线名称</label><input id="route-name" placeholder="例：1号楼3层日常巡检"/>
+  <div style="display:flex;gap:10px">
+    <div style="flex:1"><label>选择建筑</label><select id="route-building" onchange="updateRouteFloorSelect()"><option value="">选择建筑</option></select></div>
+    <div style="flex:1"><label>选择楼层</label><select id="route-floor" onchange="loadRouteDevices()"><option value="">先选建筑</option></select></div>
+  </div>
+  <label>选择巡检点位</label>
+  <div id="route-device-checkboxes" style="border:1px solid #eee;border-radius:6px;min-height:80px"></div>
+  <label>备注</label><textarea id="route-remark" rows="2"></textarea>
+  <div class="modal-btn-row"><button class="btn primary" onclick="submitCreateRoute()">创建</button><button class="btn ghost" onclick="closeModal('modal-create-route')">取消</button></div>
+</div></div>
+
+<!-- 模态框：路线执行 -->
+<div id="modal-route-execution" class="modal hidden"><div class="modal-box">
+  <h4>🗺️ 路线巡检中</h4>
+  <div id="route-execution-content"></div>
+</div></div>
+
+<!-- 模态框：月巡检计划管理 -->
+<div id="modal-inspect-plan-v2" class="modal hidden"><div class="modal-box wide">
+  <h4>📅 月巡检计划管理</h4>
+  <div style="margin-bottom:12px;display:flex;gap:10px;align-items:center">
+    <button class="btn primary small" onclick="openCreateMonthlyPlanModal()">+ 创建月计划</button>
+    <span style="font-size:12px;color:#666">月计划可自动拆解为日计划，巡检打卡自动更新进度</span>
+  </div>
+  <div id="monthly-plan-list" style="max-height:450px;overflow-y:auto"></div>
+  <div class="modal-btn-row"><button class="btn ghost" onclick="closeModal('modal-inspect-plan-v2')">关闭</button></div>
+</div></div>
+
+<!-- 模态框：创建月计划 -->
+<div id="modal-create-monthly-plan" class="modal hidden"><div class="modal-box">
+  <h4>创建月巡检计划</h4>
+  <label>计划名称</label><input id="mp-name" placeholder="例：2026年9月巡检计划"/>
+  <div style="display:flex;gap:10px">
+    <div style="flex:1"><label>巡检月份</label><input type="month" id="mp-month"/></div>
+    <div style="flex:1"><label>负责人</label><input id="mp-assignee" placeholder="巡检员用户名"/></div>
+  </div>
+  <div style="display:flex;gap:10px;margin-top:8px">
+    <div style="flex:1"><label>巡检频次（每层巡检几次）</label><input type="number" id="mp-frequency" value="1" min="1" max="31" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px"/></div>
+    <div style="flex:1"><label>巡检模式</label><select id="mp-sample-mode" onchange="toggleSampleOptions()" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px"><option value="all">全部巡检</option><option value="sample">抽样巡检</option></select></div>
+  </div>
+  <div id="mp-sample-options" style="display:none;margin-top:8px;padding:10px;background:#f0f9ff;border-radius:6px;border:1px solid #bae6fd">
+    <div style="font-size:12px;color:#0369a1;margin-bottom:8px">抽样巡检：不需要扫完全部设备，达到抽样量即算完成</div>
+    <div style="display:flex;gap:10px">
+      <div style="flex:1"><label>每层抽样数</label><input type="number" id="mp-sample-per-floor" value="5" min="1" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px"/></div>
+      <div style="flex:1"><label>总抽样上限（0=不限制）</label><input type="number" id="mp-sample-total" value="0" min="0" style="width:100%;padding:6px;border:1px solid #ddd;border-radius:4px"/></div>
+    </div>
+  </div>
+  <label>选择巡检建筑（可多选）</label>
+  <div id="mp-building-checkboxes" style="border:1px solid #eee;border-radius:6px;padding:10px;max-height:150px;overflow-y:auto"></div>
+  <label>备注</label><textarea id="mp-remark" rows="2"></textarea>
+  <div class="modal-btn-row"><button class="btn primary" onclick="submitMonthlyPlan()">创建并生成日计划</button><button class="btn ghost" onclick="closeModal('modal-create-monthly-plan')">取消</button></div>
+</div></div>
+<!-- 模态框：编辑月计划 -->
+<div id="modal-edit-monthly-plan" class="modal hidden"><div class="modal-box">
+  <h4>编辑月巡检计划</h4>
+  <input type="hidden" id="emp-id"/>
+  <label>计划名称</label><input id="emp-name"/>
+  <div style="display:flex;gap:10px">
+    <div style="flex:1"><label>巡检月份</label><input type="month" id="emp-month"/></div>
+    <div style="flex:1"><label>负责人</label><input id="emp-assignee"/></div>
+  </div>
+  <label>选择巡检建筑</label>
+  <div id="emp-building-checkboxes" style="border:1px solid #eee;border-radius:6px;padding:10px;max-height:150px;overflow-y:auto"></div>
+  <label>备注</label><textarea id="emp-remark" rows="2"></textarea>
+  <div class="modal-btn-row"><button class="btn primary" onclick="submitEditMonthlyPlan()">保存</button><button class="btn ghost" onclick="closeModal('modal-edit-monthly-plan')">取消</button></div>
+</div></div>
+
+<!-- 模态框：日计划列表 -->
+<div id="modal-daily-plans" class="modal hidden"><div class="modal-box wide">
+  <h4>📋 日计划明细</h4>
+  <div id="daily-plans-content"></div>
+</div></div>
+
+<!-- 模态框：编辑日计划 -->
+<div id="modal-edit-daily-plan" class="modal hidden"><div class="modal-box">
+  <h4>编辑日计划</h4>
+  <input type="hidden" id="edp-id"/>
+  <label>巡检日期</label><input type="date" id="edp-date"/>
+  <label>负责人</label><input id="edp-assignee" placeholder="巡检员用户名"/>
+  <label>状态</label><select id="edp-status"><option value="pending">待开始</option><option value="in-progress">进行中</option><option value="completed">已完成</option></select>
+  <div class="modal-btn-row"><button class="btn primary" onclick="submitEditDailyPlan()">保存</button><button class="btn ghost" onclick="closeModal('modal-edit-daily-plan')">取消</button></div>
+</div></div>
+
+<!-- 自定义确认弹窗 -->
+<div id="custom-confirm-modal" class="modal hidden" style="z-index:9999">
+  <div class="modal-box" style="max-width:380px;text-align:center">
+    <div id="custom-confirm-message" style="font-size:15px;padding:20px 10px;line-height:1.6"></div>
+    <div style="display:flex;gap:10px;justify-content:center;padding-bottom:15px">
+      <button class="btn primary" id="custom-confirm-ok" style="min-width:80px">确定</button>
+      <button class="btn ghost" id="custom-confirm-cancel" style="min-width:80px">取消</button>
+    </div>
+  </div>
+</div>
+<!-- 维保巡检工作台 -->
+<div id="maintain-workbench" style="position:fixed;top:0;left:0;right:0;bottom:0;background:#f0f2f5;z-index:900;display:none;overflow-y:auto">
+    <!-- 顶部栏 -->
+    <div style="background:linear-gradient(135deg,#1e3a5f 0%,#2563eb 100%);color:#fff;padding:20px 30px;display:flex;justify-content:space-between;align-items:center;box-shadow:0 2px 10px rgba(0,0,0,.1)">
+      <div>
+        <div style="font-size:22px;font-weight:bold">🔧 维保巡检工作台</div>
+        <div style="font-size:13px;opacity:.8;margin-top:4px" id="wb-date"></div>
+      </div>
+      <button onclick="closeMaintainWorkbench()" style="background:rgba(255,255,255,.2);border:none;color:#fff;padding:8px 16px;border-radius:6px;cursor:pointer;font-size:14px">✕ 关闭</button>
+    </div>
+    <div style="padding:20px 30px;max-width:1400px;margin:0 auto">
+      <!-- 关键指标 -->
+      <div style="display:grid;grid-template-columns:1fr 2fr 1fr 1fr;gap:16px;margin-bottom:24px">
+        <div class="wb-stat-card" style="background:linear-gradient(135deg,#3b82f6,#60a5fa)">
+          <div class="wb-stat-icon">📋</div>
+          <div class="wb-stat-num" id="wb-today-inspect">0</div>
+          <div class="wb-stat-label">今日巡检</div>
+        </div>
+        <div class="wb-stat-card" style="background:linear-gradient(135deg,#f59e0b,#fbbf24);padding:16px 20px">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-size:20px">📌</span>
+              <span style="font-size:14px;font-weight:bold;color:#fff">待办任务</span>
+            </div>
+            <span style="font-size:24px;font-weight:bold;color:#fff" id="wb-pending-task">0</span>
+          </div>
+          <div id="wb-pending-detail" style="display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12px;color:rgba(255,255,255,.95)"></div>
+        </div>
+        <div class="wb-stat-card" style="background:linear-gradient(135deg,#ef4444,#f87171)">
+          <div class="wb-stat-icon">⚠️</div>
+          <div class="wb-stat-num" id="wb-fault">0</div>
+          <div class="wb-stat-label">故障设备</div>
+        </div>
+        <div class="wb-stat-card" style="background:linear-gradient(135deg,#8b5cf6,#a78bfa)">
+          <div class="wb-stat-icon">⏰</div>
+          <div class="wb-stat-num" id="wb-overdue">0</div>
+          <div class="wb-stat-label">维保逾期</div>
+        </div>
+      </div>
+
+      <!-- 功能卡片区域 -->
+      <div id="wb-cards-area"></div>
+    </div>
+</div></body>
+</html>
+
+
