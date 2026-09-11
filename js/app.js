@@ -13,6 +13,10 @@ document.addEventListener('DOMContentLoaded', () => {
   if (typeof initPendingPanelState === 'function') initPendingPanelState();
   // 自动导入扫码巡检记录
   if (typeof importPendingInspectRecords === 'function') importPendingInspectRecords();
+  // 打开主系统即同步一次巡检记录状态（自动生成维修/维保工单，无需等待打开列表或刷新）
+  if (typeof syncDeviceStatusFromInspectRecords === 'function') {
+    setTimeout(() => { syncDeviceStatusFromInspectRecords().catch(() => {}); }, 800);
+  }
   // 初始化云端同步
   if (typeof Cloud !== 'undefined') Cloud.init();
   // 扫码实时联动：扫码页提交巡检后，主系统即时刷新设备状态
