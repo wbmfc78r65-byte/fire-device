@@ -367,10 +367,17 @@ body {
     </div>
   </div>
 
-  <!-- 维修打卡（维修员/验收员可见） -->
+  <!-- 维修打卡（维修员可见） -->
   <div class="section" id="maintain-section" style="display:none">
     <div class="section-title">🔧 维修打卡</div>
     <div class="form-area">
+      <div class="form-group">
+        <label>我的维修任务</label>
+        <select id="maintain-order-select" onchange="onWorkOrderChange(this.value)" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;box-sizing:border-box">
+          <option value="">-- 自由维修（不关联工单）--</option>
+        </select>
+        <div id="maintain-order-info" style="display:none;margin-top:8px;padding:10px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:12px;line-height:1.8;color:#92400e"></div>
+      </div>
       <div class="form-group">
         <label>维修人 *</label>
         <input type="text" id="maintain-person" placeholder="请输入维修人姓名">
@@ -408,6 +415,29 @@ body {
     </div>
   </div>
 
+  <!-- 验收工作台（验收员可见） -->
+  <div class="section" id="accept-section" style="display:none">
+    <div class="section-title">🔧 维修验收</div>
+    <div class="form-area">
+      <div id="accept-order-list">
+        <div class="empty">正在加载待验收工单...</div>
+      </div>
+      <!-- 工单详情（点开列表项后显示） -->
+      <div id="accept-order-detail" style="display:none">
+        <div id="accept-order-detail-body" style="background:#f8f9fa;border-radius:8px;padding:12px;font-size:13px;line-height:1.9;margin-bottom:12px"></div>
+        <div class="form-group">
+          <label>验收意见</label>
+          <textarea id="accept-remark" placeholder="填写验收意见（通过可留空，退回请写明原因）"></textarea>
+        </div>
+        <div style="display:flex;gap:10px">
+          <button class="btn-submit" style="flex:1;margin:0" onclick="doAccept('pass')">✅ 验收通过</button>
+          <button class="btn-submit" style="flex:1;margin:0;background:linear-gradient(135deg,#dc2626,#ef4444)" onclick="doAccept('reject')">↩ 退回维修</button>
+        </div>
+      </div>
+      <button id="accept-back-btn" class="btn-submit" style="display:none;background:linear-gradient(135deg,#6b7280,#9ca3af)" onclick="backAcceptList()">返回工单列表</button>
+    </div>
+  </div>
+
   <!-- 无岗位权限提示 -->
   <div id="no-permission" class="section" style="display:none">
     <div class="section-title" style="color:#d97706">⚠️ 无岗位权限</div>
@@ -415,6 +445,26 @@ body {
       <div style="font-size:14px;color:#666;line-height:1.8;text-align:center;padding:20px 10px">
         该工号未分配巡检/维修/验收岗位，无法操作。<br>
         请联系管理员在「人员管理」中为该人员分配岗位。
+      </div>
+    </div>
+  </div>
+
+  <!-- 岗位选择（验收员登录后显示） -->
+  <div id="role-select" style="display:none">
+    <div class="section" style="text-align:center;padding:24px 16px">
+      <div style="font-size:16px;font-weight:600;color:#333;margin-bottom:6px">请选择工作台</div>
+      <div style="font-size:12px;color:#999;margin-bottom:18px">验收员可查看巡检记录或验收维修工单</div>
+      <div style="display:flex;gap:12px">
+        <div onclick="chooseWorkMode('inspect')" style="flex:1;padding:22px 10px;border:2px solid #e5e7eb;border-radius:12px;cursor:pointer;text-align:center;transition:all .2s" onmouseover="this.style.borderColor='#10b981';this.style.background='#f0fdf4';this.style.boxShadow='0 4px 14px rgba(16,185,129,0.15)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#e5e7eb';this.style.background='#fff';this.style.boxShadow='none';this.style.transform='translateY(0)'">
+          <div style="font-size:30px">📋</div>
+          <div style="font-size:14px;font-weight:600;color:#065f46;margin-top:8px">巡检查看</div>
+          <div style="font-size:11px;color:#999;margin-top:4px">查看巡检记录</div>
+        </div>
+        <div onclick="chooseWorkMode('accept')" style="flex:1;padding:22px 10px;border:2px solid #e5e7eb;border-radius:12px;cursor:pointer;text-align:center;transition:all .2s" onmouseover="this.style.borderColor='#3b82f6';this.style.background='#eff6ff';this.style.boxShadow='0 4px 14px rgba(59,130,246,0.15)';this.style.transform='translateY(-2px)'" onmouseout="this.style.borderColor='#e5e7eb';this.style.background='#fff';this.style.boxShadow='none';this.style.transform='translateY(0)'">
+          <div style="font-size:30px">🔧</div>
+          <div style="font-size:14px;font-weight:600;color:#1e40af;margin-top:8px">维修验收</div>
+          <div style="font-size:11px;color:#999;margin-top:4px">验收维修工单</div>
+        </div>
       </div>
     </div>
   </div>
@@ -636,32 +686,46 @@ function showMainContent() {
   document.getElementById('main-content').style.display = 'block';
   if (!currentInspector) return;
   
-  // 根据角色控制界面显示：巡检员→巡检界面、维修员→维修界面、验收员→两者都显示
+  // 根据角色控制界面显示：巡检员→巡检界面、维修员→维修界面、验收员→先选择工作台
   const roles = getRoleArray(currentInspector.roles);
-  const canInspect = roles.indexOf('inspector') >= 0 || roles.indexOf('acceptor') >= 0;
-  const canMaintain = roles.indexOf('repairer') >= 0 || roles.indexOf('acceptor') >= 0;
+  const isAcceptor = roles.indexOf('acceptor') >= 0;
+  const canInspect = roles.indexOf('inspector') >= 0 || isAcceptor;
+  const canMaintain = roles.indexOf('repairer') >= 0 || isAcceptor;
   const inspectSec = document.getElementById('inspect-section');
   const maintainSec = document.getElementById('maintain-section');
-  if (inspectSec) inspectSec.style.display = canInspect ? '' : 'none';
-  if (maintainSec) maintainSec.style.display = canMaintain ? '' : 'none';
+  const historySec = document.getElementById('inspect-history-section');
+  const tipsEl = document.getElementById('inspect-tips');
+  const roleSelect = document.getElementById('role-select');
   
+  if (isAcceptor) {
+    // 验收员：先显示"选择工作台"，巡检/维修区块先隐藏，选完再进入
+    if (roleSelect) roleSelect.style.display = 'block';
+    if (inspectSec) inspectSec.style.display = 'none';
+    if (maintainSec) maintainSec.style.display = 'none';
+    if (historySec) historySec.style.display = 'none';
+    if (tipsEl) tipsEl.style.display = 'none';
+  } else {
+    if (roleSelect) roleSelect.style.display = 'none';
+    if (inspectSec) inspectSec.style.display = canInspect ? '' : 'none';
+    if (maintainSec) maintainSec.style.display = canMaintain ? '' : 'none';
+    if (historySec) historySec.style.display = canInspect ? '' : 'none';
+    if (tipsEl) tipsEl.style.display = canInspect ? '' : 'none';
+    // 维修员直接进入维修界面时加载维修任务
+    if (canMaintain) loadMyWorkOrders();
+  }
   // 无任何岗位权限提示
   const noPerm = document.getElementById('no-permission');
   if (noPerm) {
     noPerm.style.display = (!canInspect && !canMaintain) ? 'block' : 'none';
   }
-  // 巡检历史与提示（仅巡检相关岗位显示，维修员不显示）
-  const historySec = document.getElementById('inspect-history-section');
-  const tipsEl = document.getElementById('inspect-tips');
-  if (historySec) historySec.style.display = canInspect ? '' : 'none';
-  if (tipsEl) tipsEl.style.display = canInspect ? '' : 'none';
   // 标题显示当前身份岗位
   const roleNames = roles.map(r => r === 'inspector' ? '巡检员' : r === 'repairer' ? '维修员' : r === 'acceptor' ? '验收员' : r).join('、');
   const bar = document.getElementById('user-info-bar');
   if (bar) {
     bar.style.display = 'flex';
+    const switchLink = isAcceptor ? '<span style="color:#2563eb;cursor:pointer;font-size:12px;margin-right:12px;text-decoration:underline" onclick="backToWorkSelect()">🔄 切换工作台</span>' : '';
     bar.innerHTML = '<span>👤 ' + (currentInspector.name || '') + ' <span style="color:#6b7280">(' + (roleNames || '未分配岗位') + ')</span></span>' +
-      '<span class="logout" onclick="logoutScan()">退出</span>';
+      '<span>' + switchLink + '<span class="logout" onclick="logoutScan()">退出</span></span>';
   }
   
   // 自动填充巡检人姓名
@@ -774,6 +838,7 @@ async function loadDeviceForms() {
         document.getElementById('custom-form-group').style.display = 'block';
       }
       const select = document.getElementById('check-form-select');
+      select.innerHTML = '<option value="">-- 不使用表单 --</option>'; // 清空，避免重复加载累积
       forms.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
       forms.forEach(f => {
         const option = document.createElement('option');
@@ -813,6 +878,7 @@ async function loadDeviceForms() {
       document.getElementById('custom-form-group').style.display = 'block';
     }
     const select = document.getElementById('check-form-select');
+    select.innerHTML = '<option value="">-- 不使用表单 --</option>'; // 清空，避免重复加载累积
     data.forEach(f => {
       const option = document.createElement('option');
       option.value = f.id;
@@ -1152,6 +1218,7 @@ async function loadMaintainForms() {
     }
     if (!forms.length) return;
     document.getElementById('maintain-form-group').style.display = 'block';
+    select.innerHTML = '<option value="">-- 不使用表单 --</option>'; // 清空，避免重复加载累积
     forms.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
     forms.forEach(f => {
       const option = document.createElement('option');
@@ -1299,6 +1366,24 @@ async function submitMaintain() {
     await ensureDBReady();
     await dbPut(SL, log);
   } catch (e) { console.error('本地维保记录写入失败:', e); }
+
+  // 如果关联了工单：更新工单状态为"待验收"（闭环：维修完成 → 通知验收员）
+  if (_currentWorkOrderId) {
+    try {
+      const orders = await fetchWorkOrders(o => o.id === _currentWorkOrderId);
+      const order = orders[0];
+      if (order) {
+        order.status = 'completed';
+        order.completedBy = person;
+        order.completedAt = new Date().toISOString();
+        order.fixDescription = remark || result;
+        order.completed_by = person;
+        order.completed_at = order.completedAt;
+        order.fix_description = remark || result;
+        await saveWorkOrder(order);
+      }
+    } catch(e) { console.error('更新工单状态失败:', e); }
+  }
   
   // 待同步队列（供主系统导入）
   try {
@@ -1616,7 +1701,285 @@ function logoutScan() {
   location.reload();
 }
 
+// 验收员/维修员选择工作台（inspect=巡检查看 / maintain=维修打卡 / accept=维修验收）
+function chooseWorkMode(mode) {
+  const roleSelect = document.getElementById('role-select');
+  const inspectSec = document.getElementById('inspect-section');
+  const maintainSec = document.getElementById('maintain-section');
+  const acceptSec = document.getElementById('accept-section');
+  const historySec = document.getElementById('inspect-history-section');
+  const tipsEl = document.getElementById('inspect-tips');
+  if (roleSelect) roleSelect.style.display = 'none';
+  if (inspectSec) inspectSec.style.display = 'none';
+  if (maintainSec) maintainSec.style.display = 'none';
+  if (acceptSec) acceptSec.style.display = 'none';
+  if (historySec) historySec.style.display = 'none';
+  if (tipsEl) tipsEl.style.display = 'none';
+  if (mode === 'inspect') {
+    // 巡检查看：验收员只读历史；巡检员显示打卡表单+历史
+    const isAcceptorView = currentInspector ? getRoleArray(currentInspector.roles).indexOf('acceptor') >= 0 : false;
+    if (inspectSec) inspectSec.style.display = isAcceptorView ? 'none' : '';
+    if (historySec) historySec.style.display = '';
+    if (tipsEl) tipsEl.style.display = '';
+    if (!isAcceptorView) loadDeviceForms();
+  } else if (mode === 'maintain') {
+    // 维修打卡（维修员）
+    if (maintainSec) maintainSec.style.display = '';
+    loadMaintainForms();
+    loadMyWorkOrders();
+  } else if (mode === 'accept') {
+    // 维修验收（验收员）
+    if (acceptSec) acceptSec.style.display = '';
+    loadAcceptOrders();
+  }
+}
+
+// 验收员返回工作台选择页
+function backToWorkSelect() {
+  const roleSelect = document.getElementById('role-select');
+  const inspectSec = document.getElementById('inspect-section');
+  const maintainSec = document.getElementById('maintain-section');
+  const acceptSec = document.getElementById('accept-section');
+  const historySec = document.getElementById('inspect-history-section');
+  const tipsEl = document.getElementById('inspect-tips');
+  if (roleSelect) roleSelect.style.display = 'block';
+  if (inspectSec) inspectSec.style.display = 'none';
+  if (maintainSec) maintainSec.style.display = 'none';
+  if (acceptSec) acceptSec.style.display = 'none';
+  if (historySec) historySec.style.display = 'none';
+  if (tipsEl) tipsEl.style.display = 'none';
+}
+
+/* ============ 维保工单闭环（维修→验收→设备恢复） ============ */
+let _currentWorkOrderId = ''; // 维修员当前选择的工单
+let _acceptOrderId = '';      // 验收员当前正在验收的工单
+
+// 获取当前扫码设备ID
+function getScanDeviceId() {
+  return (window._scanDevice && window._scanDevice.id) || getQueryParam("id") || '';
+}
+
+// 读取工单列表（本地模式：IndexedDB S_WORKORDER；云端模式：work_orders 表）
+async function fetchWorkOrders(filter) {
+  const deviceId = getScanDeviceId();
+  let orders = [];
+  if (IS_TEST_ENV) {
+    try {
+      await ensureDBReady();
+      const all = await dbGetAll(S_WORKORDER);
+      orders = (all || []).filter(o => !filter || filter(o));
+    } catch(e) { console.error('读取本地工单失败:', e); }
+  } else {
+    try {
+      let q = supabaseClient.from('work_orders').select('*');
+      if (deviceId) q = q.eq('device_id', deviceId);
+      const { data, error } = await q;
+      if (error) console.error('读取云端工单失败:', error);
+      orders = (data || []).filter(o => !filter || filter(o));
+    } catch(e) { console.error('读取云端工单异常:', e); }
+  }
+  return orders.sort((a, b) => new Date(b.created_at || b.createdAt || 0) - new Date(a.created_at || a.createdAt || 0));
+}
+
+// 更新工单状态（本地模式写 S_WORKORDER，云端模式写 work_orders 表）
+async function saveWorkOrder(order) {
+  if (IS_TEST_ENV) {
+    await ensureDBReady();
+    await dbPut(S_WORKORDER, order);
+  } else {
+    const cloudOrder = {
+      status: order.status,
+      fix_description: order.fixDescription || order.fix_description || '',
+      completed_by: order.completedBy || order.completed_by || '',
+      completed_at: order.completedAt || order.completed_at || null,
+      accepted_by: order.acceptedBy || order.accepted_by || '',
+      accepted_at: order.acceptedAt || order.accepted_at || null,
+      accept_remark: order.acceptRemark || order.accept_remark || ''
+    };
+    const { error } = await supabaseClient.from('work_orders').update(cloudOrder).eq('id', order.id);
+    if (error) console.error('更新云端工单失败:', error);
+  }
+}
+
+// 维修员：加载我的维修任务（本设备的未验收工单）
+async function loadMyWorkOrders() {
+  const select = document.getElementById('maintain-order-select');
+  if (!select) return;
+  select.innerHTML = '<option value="">-- 自由维修（不关联工单）--</option>';
+  try {
+    const myId = currentInspector ? currentInspector.id : '';
+    const myName = currentInspector ? currentInspector.name : '';
+    const orders = await fetchWorkOrders(o => {
+      if (o.status === 'accepted') return false; // 已验收的不显示
+      if (o.deviceId && o.deviceId !== getScanDeviceId()) return false;
+      if (o.device_id && o.device_id !== getScanDeviceId()) return false;
+      const aid = o.assigneeId || o.assignee_id || '';
+      const an = o.assignee || '';
+      return aid === myId || an === myName || !aid; // 派给我的或未派单的
+    });
+    const statusMap = { pending: '待派单', processing: '进行中', completed: '待验收' };
+    orders.forEach(o => {
+      const option = document.createElement('option');
+      option.value = o.id;
+      option.textContent = (o.title || '维保工单') + '（' + (statusMap[o.status] || o.status) + '）';
+      select.appendChild(option);
+    });
+  } catch(e) { console.error('加载维修任务失败:', e); }
+}
+
+// 维修员选择工单后显示工单信息
+async function onWorkOrderChange(orderId) {
+  const info = document.getElementById('maintain-order-info');
+  _currentWorkOrderId = orderId || '';
+  if (!info) return;
+  if (!orderId) { info.style.display = 'none'; return; }
+  try {
+    const orders = await fetchWorkOrders(o => o.id === orderId);
+    const order = orders[0];
+    if (!order) { info.style.display = 'none'; return; }
+    const statusMap = { pending: '待派单', processing: '进行中', completed: '待验收' };
+    info.innerHTML = '📋 <b>' + (order.title || '维保工单') + '</b><br>' +
+      '🔧 故障描述：' + (order.description || '无') + '<br>' +
+      '⏰ 上报时间：' + String(order.created_at || order.createdAt || '').replace('T', ' ').substr(0, 16) + '<br>' +
+      '📌 工单状态：' + (statusMap[order.status] || order.status);
+    info.style.display = 'block';
+  } catch(e) { console.error('加载工单详情失败:', e); }
+}
+
+// 验收员：加载待验收工单（本设备 status=completed）
+async function loadAcceptOrders() {
+  const list = document.getElementById('accept-order-list');
+  const detail = document.getElementById('accept-order-detail');
+  const backBtn = document.getElementById('accept-back-btn');
+  if (!list) return;
+  list.innerHTML = '<div class="empty">正在加载待验收工单...</div>';
+  if (detail) detail.style.display = 'none';
+  if (backBtn) backBtn.style.display = 'none';
+  try {
+    const orders = await fetchWorkOrders(o => o.status === 'completed' && (o.deviceId === getScanDeviceId() || o.device_id === getScanDeviceId()));
+    if (!orders.length) {
+      list.innerHTML = '<div class="empty">暂无待验收工单 🎉<br><span style="font-size:12px;color:#999">维修员完成维修后，工单会出现在这里</span></div>';
+      return;
+    }
+    list.innerHTML = orders.map(o => {
+      const deviceTxt = (o.snapshot_deviceType || '') + (o.snapshot_deviceCode ? ' ' + o.snapshot_deviceCode : '');
+      const fixDesc = o.fix_description || o.fixDescription || '无';
+      return '<div onclick="showAcceptDetail(\'' + o.id + '\')" style="padding:14px;border:1px solid #e5e7eb;border-radius:10px;margin-bottom:10px;cursor:pointer;background:#fff;transition:all .15s" onmouseover="this.style.borderColor=\'#3b82f6\';this.style.boxShadow=\'0 2px 10px rgba(59,130,246,0.12)\'" onmouseout="this.style.borderColor=\'#e5e7eb\';this.style.boxShadow=\'none\'">' +
+        '<div style="font-size:14px;font-weight:600;color:#1e40af">📋 ' + (o.title || '维保工单') + '</div>' +
+        '<div style="font-size:12px;color:#6b7280;margin-top:6px;line-height:1.7">' +
+        '🔧 维修人：' + (o.completed_by || o.completedBy || '未知') + '<br>' +
+        '⏰ 完成时间：' + String(o.completed_at || o.completedAt || '').replace('T', ' ').substr(0, 16) + '<br>' +
+        (deviceTxt ? '📍 设备：' + deviceTxt + '<br>' : '') +
+        '📝 维修描述：' + (fixDesc.length > 40 ? fixDesc.substr(0, 40) + '...' : fixDesc) +
+        '</div>' +
+        '<div style="margin-top:8px;font-size:12px;color:#3b82f6">点击查看详情并验收 ›</div>' +
+        '</div>';
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div class="empty">加载失败：' + (e.message || e) + '</div>';
+  }
+}
+
+// 验收员查看工单详情
+async function showAcceptDetail(orderId) {
+  _acceptOrderId = orderId;
+  const list = document.getElementById('accept-order-list');
+  const detail = document.getElementById('accept-order-detail');
+  const backBtn = document.getElementById('accept-back-btn');
+  const body = document.getElementById('accept-order-detail-body');
+  if (!detail || !body) return;
+  try {
+    const orders = await fetchWorkOrders(o => o.id === orderId);
+    const o = orders[0];
+    if (!o) return;
+    const statusMap = { pending: '待派单', processing: '进行中', completed: '待验收', accepted: '已验收' };
+    body.innerHTML = '<div style="font-size:14px;font-weight:600;color:#1e40af;margin-bottom:8px">📋 ' + (o.title || '维保工单') + '</div>' +
+      '<div style="line-height:1.9">' +
+      '📌 工单状态：<b>' + (statusMap[o.status] || o.status) + '</b><br>' +
+      '🔧 故障描述：' + (o.description || '无') + '<br>' +
+      '⏰ 上报时间：' + String(o.created_at || o.createdAt || '').replace('T', ' ').substr(0, 16) + '<br>' +
+      '🛠️ 维修人：' + (o.completed_by || o.completedBy || '未知') + '<br>' +
+      '✅ 完成时间：' + String(o.completed_at || o.completedAt || '').replace('T', ' ').substr(0, 16) + '<br>' +
+      '📝 维修描述：' + (o.fix_description || o.fixDescription || '无') + '<br>' +
+      (o.cost ? '💰 维修费用：¥' + o.cost + '<br>' : '') +
+      '</div>';
+    if (list) list.style.display = 'none';
+    detail.style.display = 'block';
+    if (backBtn) backBtn.style.display = 'block';
+    document.getElementById('accept-remark').value = '';
+  } catch(e) { console.error('加载验收详情失败:', e); }
+}
+
+// 验收员返回工单列表
+function backAcceptList() {
+  _acceptOrderId = '';
+  const list = document.getElementById('accept-order-list');
+  const detail = document.getElementById('accept-order-detail');
+  const backBtn = document.getElementById('accept-back-btn');
+  if (list) list.style.display = '';
+  if (detail) detail.style.display = 'none';
+  if (backBtn) backBtn.style.display = 'none';
+  loadAcceptOrders();
+}
+
+// 验收操作（pass=验收通过 / reject=退回维修）
+async function doAccept(action) {
+  if (!_acceptOrderId) return;
+  const remark = document.getElementById('accept-remark').value.trim();
+  if (action === 'reject' && !remark) {
+    alert('退回维修请填写退回原因');
+    return;
+  }
+  const me = currentInspector || {};
+  const now = new Date().toISOString();
+  try {
+    const orders = await fetchWorkOrders(o => o.id === _acceptOrderId);
+    const order = orders[0];
+    if (!order) { alert('工单不存在或已被处理'); return; }
+    if (action === 'pass') {
+      // 验收通过：工单→已验收，闭环恢复设备状态
+      order.status = 'accepted';
+      order.acceptedBy = me.name || '';
+      order.acceptedAt = now;
+      order.acceptRemark = remark || '验收通过';
+      order.accepted_by = me.name || '';
+      order.accepted_at = now;
+      order.accept_remark = remark || '验收通过';
+      // 本地模式：直接闭环——设备状态恢复"正常"（云端模式由主系统同步后自动处理）
+      if (IS_TEST_ENV) {
+        try {
+          await ensureDBReady();
+          const devs = await dbGetAll(SD);
+          const dev = devs.find(d => d.id === getScanDeviceId());
+          if (dev && (dev.status === '故障' || dev.status === '待维保')) {
+            dev.status = '正常';
+            await dbPut(SD, dev);
+          }
+        } catch(e) { console.warn('验收后更新本地设备状态失败:', e); }
+      }
+      await saveWorkOrder(order);
+      document.getElementById('success-title').innerText = '验收完成';
+      document.getElementById('success-msg').innerText = '已验收通过，设备状态已恢复正常';
+      document.getElementById('success-overlay').style.display = 'flex';
+    } else {
+      // 退回维修：工单→进行中，维修员可重新处理
+      order.status = 'processing';
+      order.acceptRemark = '验收不通过：' + remark;
+      order.accept_remark = '验收不通过：' + remark;
+      await saveWorkOrder(order);
+      document.getElementById('success-title').innerText = '已退回维修';
+      document.getElementById('success-msg').innerText = '工单已退回维修员重新处理';
+      document.getElementById('success-overlay').style.display = 'flex';
+    }
+    backAcceptList();
+  } catch(e) {
+    alert('验收操作失败：' + (e.message || e));
+  }
+}
+
 function render(d) {
+  // 保存当前设备到全局（工单/验收功能使用）
+  window._scanDevice = d;
   const type = d.type || d.deviceType || "未知设备";
   const code = d.code || "";
   const status = d.status || "未知";
