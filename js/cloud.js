@@ -10,6 +10,14 @@ const Cloud = {
   // 初始化
   init() {
     try {
+      // 测试环境（GitHub Pages / Vercel / 本地）自动关闭云同步，避免测试数据写入正式数据库；
+      // 腾讯云域名（含以后绑定的自定义域名）自动开启，正式环境不受影响。
+      const host = (typeof location !== 'undefined' ? location.hostname : '') || '';
+      if (host.indexOf('github.io') !== -1 || host.indexOf('vercel.app') !== -1 || host === 'localhost' || host === '127.0.0.1') {
+        console.log('[Cloud] 当前为测试环境(' + host + ')，云同步已自动关闭');
+        this.enabled = false;
+        return;
+      }
       if (typeof createTCBClient !== 'undefined' && this.config.url && this.config.key) {
         this.supabase = createTCBClient(this.config.url, this.config.key);
         this.enabled = true;
