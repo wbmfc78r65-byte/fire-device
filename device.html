@@ -1611,6 +1611,19 @@ async function submitCheck() {
           snapshot_floorName: (floor && floor.floorName) || ''
         };
         await dbPut(S_LOG, log);
+        // 实时联动：提交巡检后立即更新设备状态，并通知主系统刷新（主系统监听 firemap_device_change）
+        try {
+          const dev = await getLocalDevice(deviceId);
+          if (dev) {
+            const statusMap = { "正常": "正常", "故障": "故障", "需维保": "待维保" };
+            const newStatus = statusMap[currentResult];
+            if (newStatus && dev.status !== newStatus) {
+              dev.status = newStatus;
+              await dbPut(SD, dev);
+            }
+          }
+          localStorage.setItem('firemap_device_change', Date.now() + '_' + deviceId);
+        } catch (e) { console.error('实时更新设备状态失败:', e); }
         // 表单数据写本地
         if (_deviceCurrentForm) {
           const formData = collectDeviceFormData();
@@ -1646,6 +1659,21 @@ async function submitCheck() {
         inspectDate: date.split(" ")[0],
         inspectTime: date.split(" ")[1]
       });
+      // 实时联动：同步更新云端设备状态（失败不影响巡检提交）
+      try {
+        const statusMap = { "正常": "正常", "故障": "故障", "需维保": "待维保" };
+        const newStatus = statusMap[currentResult];
+        if (newStatus) {
+          const { data: cloudDev, error: qe } = await supabaseClient.from('devices').select('device_data').eq('id', deviceId).single();
+          if (!qe && cloudDev && cloudDev.device_data) {
+            const dd = cloudDev.device_data;
+            if (dd.status !== newStatus) {
+              dd.status = newStatus;
+              await supabaseClient.from('devices').update({ device_data: dd }).eq('id', deviceId);
+            }
+          }
+        }
+      } catch (e) { console.warn('云端设备状态更新失败（不影响巡检提交）:', e); }
     }
     
     // 保存自定义表单数据
