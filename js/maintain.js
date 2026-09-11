@@ -1000,6 +1000,25 @@ async function syncDeviceStatusFromInspectRecords() {
           console.log(`    → 判定为已修复，改为正常`);
         } else {
           newStatus = "故障"; // 故障未处理
+          // 业务闭环：巡检"故障"自动生成维修工单（同设备无进行中的维修工单时，无需手动点生成工单）
+          const hasActiveRepairOrder = workOrders.some(w => w.deviceId === dev.id && w.type === "repair" && w.status !== "accepted");
+          if (!hasActiveRepairOrder) {
+            try {
+              await createWorkOrder({
+                title: "维修工单-" + (dev.deviceType || "设备"),
+                type: "repair",
+                priority: "urgent",
+                description: "巡检发现故障（巡检记录ID:" + (latest.id || "无") + "），请及时维修",
+                deviceId: dev.id,
+                snapshot_buildingName: latest.snapshot_buildingName || dev.buildingName || "",
+                snapshot_floorName: latest.snapshot_floorName || dev.floorName || "",
+                snapshot_deviceType: latest.snapshot_deviceType || dev.deviceType || "",
+                snapshot_deviceCode: latest.snapshot_deviceCode || dev.deviceCode || "",
+                inspectLogId: latest.id || null
+              });
+              console.log(`    ⚙️ 已自动生成维修工单（巡检发现故障）`);
+            } catch(e) { console.warn("自动创建维修工单失败:", e); }
+          }
           console.log(`    → 判定为未处理，保持故障`);
         }
       }
@@ -1275,9 +1294,9 @@ async function renderInspectRecords() {
       displayStatus = '故障(已修复)';
       statusCss = 'color:#10b981';
     }
-    // 工单状态：故障记录显示生成工单按钮或工单状态
+    // 工单状态：故障/需维保记录显示生成工单按钮或工单状态
     let orderCell = '<span style="color:#999">-</span>';
-    if (row.status === '故障') {
+    if (row.status === '故障' || row.status === '需维保') {
       if (isDeviceInvalid) {
         // 设备无效（ID为空或已删除），不允许生成工单
         orderCell = '<span style="color:#9ca3af;font-size:12px">🚫 无法生成工单</span>';
