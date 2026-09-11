@@ -419,15 +419,15 @@ body {
     </div>
   </div>
 
-  <!-- 历史记录 -->
-  <div class="section">
+  <!-- 历史记录（巡检员/验收员可见） -->
+  <div class="section" id="inspect-history-section">
     <div class="section-title">📝 巡检历史</div>
     <div class="records" id="records-list">
       <div class="empty">暂无巡检记录</div>
     </div>
   </div>
 
-  <div class="tips">💡 巡检记录自动同步到主系统。在主系统「维保巡检」中可查看所有巡检记录。</div>
+  <div class="tips" id="inspect-tips">💡 巡检记录自动同步到主系统。在主系统「维保巡检」中可查看所有巡检记录。</div>
 </div>
 </div><!-- /main-content -->
 
@@ -435,8 +435,8 @@ body {
 <div class="success-overlay" id="success-overlay">
   <div class="success-box">
     <div class="success-icon">✓</div>
-    <h3>巡检完成</h3>
-    <p id="success-msg">巡检记录已提交</p>
+    <h3 id="success-title">提交成功</h3>
+    <p id="success-msg">记录已提交</p>
     <button onclick="closeSuccess()">确定</button>
   </div>
 </div>
@@ -650,6 +650,11 @@ function showMainContent() {
   if (noPerm) {
     noPerm.style.display = (!canInspect && !canMaintain) ? 'block' : 'none';
   }
+  // 巡检历史与提示（仅巡检相关岗位显示，维修员不显示）
+  const historySec = document.getElementById('inspect-history-section');
+  const tipsEl = document.getElementById('inspect-tips');
+  if (historySec) historySec.style.display = canInspect ? '' : 'none';
+  if (tipsEl) tipsEl.style.display = canInspect ? '' : 'none';
   // 标题显示当前身份岗位
   const roleNames = roles.map(r => r === 'inspector' ? '巡检员' : r === 'repairer' ? '维修员' : r === 'acceptor' ? '验收员' : r).join('、');
   const bar = document.getElementById('user-info-bar');
@@ -1333,6 +1338,7 @@ async function submitMaintain() {
   _maintainFormData = {};
   
   // 成功提示
+  document.getElementById('success-title').innerText = '维修完成';
   document.getElementById('success-msg').innerText = '维修记录已提交：' + result;
   document.getElementById('success-overlay').style.display = 'flex';
 }
@@ -1593,6 +1599,7 @@ async function submitCheck() {
   }, 500);
   
   // 显示成功弹窗
+  document.getElementById('success-title').innerText = '巡检完成';
   document.getElementById("success-msg").innerText = 
     currentResult === "正常" ? "设备正常，巡检完成" : 
     currentResult === "故障" ? "已标记故障，请及时维修" : "已标记需维保，请安排保养";
