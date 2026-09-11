@@ -308,6 +308,8 @@ body {
   <div class="code" id="dev-code"></div>
   <span class="status-tag" id="dev-status-tag" style="background:rgba(255,255,255,0.2)">加载中...</span>
 </div>
+<!-- 登录身份栏 -->
+<div class="user-info-bar" id="user-info-bar" style="display:none"></div>
 
 <div class="container">
   <!-- 设备信息 -->
@@ -318,8 +320,8 @@ body {
     </table>
   </div>
 
-  <!-- 巡检打卡 -->
-  <div class="section">
+  <!-- 巡检打卡（巡检员/验收员可见） -->
+  <div class="section" id="inspect-section">
     <div class="section-title">✅ 巡检打卡</div>
     <div class="form-area">
       <div class="form-group">
@@ -365,6 +367,58 @@ body {
     </div>
   </div>
 
+  <!-- 维修打卡（维修员/验收员可见） -->
+  <div class="section" id="maintain-section" style="display:none">
+    <div class="section-title">🔧 维修打卡</div>
+    <div class="form-area">
+      <div class="form-group">
+        <label>维修人 *</label>
+        <input type="text" id="maintain-person" placeholder="请输入维修人姓名">
+      </div>
+      <div class="form-group">
+        <label>维修结果 *</label>
+        <select id="maintain-result" style="width:100%;padding:10px 12px;border:1px solid #ddd;border-radius:6px;font-size:14px;box-sizing:border-box">
+          <option value="维修完成">✅ 维修完成</option>
+          <option value="部分修复">⚠️ 部分修复</option>
+          <option value="无法修复">❌ 无法修复</option>
+          <option value="待配件">🔧 待配件</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>维修描述</label>
+        <textarea id="maintain-remark" placeholder="维修情况描述（选填）"></textarea>
+      </div>
+      <div class="form-group">
+        <label>现场照片（选填）</label>
+        <div class="photo-upload" onclick="document.getElementById('maintain-photo').click()">
+          📷 点击上传现场照片
+        </div>
+        <input type="file" id="maintain-photo" accept="image/*" capture="environment" style="display:none" onchange="previewMaintainPhoto(this)">
+        <img id="maintain-photo-preview" class="photo-preview" style="display:none">
+      </div>
+      <!-- 维修自定义表单 -->
+      <div class="form-group" id="maintain-form-group" style="display:none">
+        <label>关联表单</label>
+        <select id="maintain-form-select" onchange="onMaintainFormChange(this.value)" style="width:100%;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:14px;box-sizing:border-box">
+          <option value="">-- 不使用表单 --</option>
+        </select>
+        <div id="maintain-form-area" style="margin-top:10px;padding:12px;background:#f8f9fa;border-radius:8px;display:none;overflow-x:hidden;max-width:100%;box-sizing:border-box"></div>
+      </div>
+      <button class="btn-submit" style="background:linear-gradient(135deg,#d97706,#f59e0b)" onclick="submitMaintain()">提交维修记录</button>
+    </div>
+  </div>
+
+  <!-- 无岗位权限提示 -->
+  <div id="no-permission" class="section" style="display:none">
+    <div class="section-title" style="color:#d97706">⚠️ 无岗位权限</div>
+    <div class="form-area">
+      <div style="font-size:14px;color:#666;line-height:1.8;text-align:center;padding:20px 10px">
+        该工号未分配巡检/维修/验收岗位，无法操作。<br>
+        请联系管理员在「人员管理」中为该人员分配岗位。
+      </div>
+    </div>
+  </div>
+
   <!-- 历史记录 -->
   <div class="section">
     <div class="section-title">📝 巡检历史</div>
@@ -388,7 +442,55 @@ body {
 </div>
 
 <script src="js/tcb.js"></script>
+<script src="js/db.js"></script>
 <script>
+// ===== 测试环境判断（GitHub Pages / Vercel / 本地 / file:// 直接打开 自动启用本地模式，不请求云端）=====
+const IS_TEST_ENV = (!location.hostname || location.hostname.indexOf('github.io') !== -1 || location.hostname.indexOf('vercel.app') !== -1 || location.hostname === 'localhost' || location.hostname === '127.0.0.1');
+// 本地人员列表（主系统人员管理写入的 localStorage firemap_staff）
+function getLocalStaff() {
+  try { return JSON.parse(localStorage.getItem("firemap_staff") || "[]"); } catch(e) { return []; }
+}
+// 从本地 IndexedDB 查设备
+let _dbReady = null;
+// 本地模式初始化 IndexedDB（与主系统同库：默认项目 FireMapDB）
+function ensureDBReady() {
+  if (_dbReady) return _dbReady;
+  _dbReady = (async function() {
+    if (typeof openMetaDB === 'function') await openMetaDB();
+    if (typeof ensureDefaultProject === 'function') await ensureDefaultProject();
+    if (typeof openDB === 'function') await openDB();
+  })().catch(e => { _dbReady = null; throw e; });
+  return _dbReady;
+}
+async function getLocalDevice(deviceId) {
+  try {
+    await ensureDBReady();
+    const all = await dbGetAll(SD);
+    return all.find(x => x.id === deviceId) || null;
+  } catch(e) { return null; }
+}
+// 从本地 IndexedDB 查单个表单
+async function getLocalForm(formId) {
+  try {
+    await ensureDBReady();
+    const all = await dbGetAll(S_FORM);
+    return all.find(f => f.id === formId) || null;
+  } catch(e) { return null; }
+}
+// 从本地 IndexedDB 查所有未删除表单
+async function getLocalForms() {
+  try {
+    await ensureDBReady();
+    const all = await dbGetAll(S_FORM);
+    return (all || []).filter(f => !f.deleted);
+  } catch(e) { return []; }
+}
+// 解析角色（兼容本地JS数组和云端PostgreSQL数组字符串 {inspector,repairer}）
+function getRoleArray(roles) {
+  if (Array.isArray(roles)) return roles;
+  if (typeof roles === 'string') return roles.replace(/[{}]/g, '').split(',').filter(Boolean);
+  return [];
+}
 // 腾讯云配置
 const SUPABASE_URL = 'https://fire-map-system-d4f7rw8wbd00e5f5.api.tcloudbasegateway.com';
 const SUPABASE_KEY = 'eyJhbGciOiJSUzI1NiIsImtpZCI6IjU3OWQxZGJkLWE1NGYtNDE4MS1iOTMzLWY1NGRhNWIwZTc3OSJ9.eyJpc3MiOiJodHRwczovL2ZpcmUtbWFwLXN5c3RlbS1kNGY3cnc4d2JkMDBlNWY1LmFwLXNoYW5naGFpLnRjYi1hcGkudGVuY2VudGNsb3VkYXBpLmNvbSIsInN1YiI6ImFub24iLCJhdWQiOiJmaXJlLW1hcC1zeXN0ZW0tZDRmN3J3OHdiZDAwZTVmNSIsImV4cCI6NDA5MjM4NjU4NSwiaWF0IjoxNzg4NzAzMzg1LCJub25jZSI6Ik1CQTVQbEFpVEplbEEweWV4RFJRZ2ciLCJhdF9oYXNoIjoiTUJBNVBsQWlUSmVsQTB5ZXhEUlFnZyIsIm5hbWUiOiJBbm9ueW1vdXMiLCJzY29wZSI6ImFub255bW91cyIsInByb2plY3RfaWQiOiJmaXJlLW1hcC1zeXN0ZW0tZDRmN3J3OHdiZDAwZTVmNSIsIm1ldGEiOnsicGxhdGZvcm0iOiJQdWJsaXNoYWJsZUtleSJ9LCJyb2xlIjoiYW5vbiIsImlzX2Fub255bW91cyI6dHJ1ZSwiYXBwX21ldGFkYXRhIjp7InByb3ZpZGVyIjoiYW5vbnltb3VzIiwicHJvdmlkZXJzIjpbImFub255bW91cyJdfSwidXNlcl9tZXRhZGF0YSI6eyJuYW1lIjoiQW5vbnltb3VzIn0sInVzZXJfdHlwZSI6IiIsImNsaWVudF90eXBlIjoiY2xpZW50X3VzZXIiLCJpc19zeXN0ZW1fYWRtaW4iOmZhbHNlfQ.OtHsyA9lLX_iKfgouUrY6NXB3bjRq2UBgd-DRNnBDgs1GgxnfO0QSc42zIaTVfGSK6738k_EUd27WLNiw4AXCRSBTLFJmyG3EP8Pt7Be4xzrRJefSBHBqCqceOCOGS3whtHgEBB_Pk9ckKse35aFTn3GpIFi9DZTmJfuv3MixGyqbS4snhQVeb7du1U6rDP9coh6KHIQ1u2cmG4oHJNGReAMoncaZgnQMD_ptB8l3SbIlh2yrxav4tg7jh1QTF-SqXfZjXBpgLJ7okPMX99b9lbpYsqnoulxsibSps1qVsJVAxGYk_eljqZjZM4SBH0WvY8DY4Xvz6nUKkuFPBZ8QA';
@@ -439,6 +541,34 @@ async function doLogin() {
   
   errorEl.innerText = '登录中...';
   
+  const encodedPwd = encodePassword(password);
+  
+  // ===== 本地模式（测试环境）：从主系统人员管理数据校验 =====
+  if (IS_TEST_ENV) {
+    const staff = getLocalStaff();
+    const person = staff.find(s => s.workId === id && s.password === encodedPwd);
+    if (person) {
+      const roles = getRoleArray(person.roles);
+      currentInspector = { id: person.workId, name: person.name, roles: roles };
+      localStorage.setItem('firemap_inspector', JSON.stringify({
+        id: currentInspector.id,
+        name: currentInspector.name,
+        roles: roles,
+        loginTime: Date.now()
+      }));
+      showMainContent();
+      errorEl.innerText = '';
+      return;
+    }
+    const found = staff.find(s => s.workId === id);
+    if (found) {
+      errorEl.innerText = '密码错误';
+    } else {
+      errorEl.innerText = '工号不存在（请先在主系统「人员管理」添加并设置岗位）';
+    }
+    return;
+  }
+  
   const result = await getInspectors();
   
   if (result.error) {
@@ -447,7 +577,6 @@ async function doLogin() {
   }
   
   const inspectors = result.data;
-  const encodedPwd = encodePassword(password);
   
   console.log('输入工号:', id, '编码密码:', encodedPwd);
   console.log('巡检员列表:', inspectors);
@@ -455,10 +584,12 @@ async function doLogin() {
   const inspector = inspectors.find(i => i.id === id && i.password === encodedPwd);
   
   if (inspector) {
-    currentInspector = inspector;
+    const roles = getRoleArray(inspector.roles);
+    currentInspector = { id: inspector.id, name: inspector.name, roles: roles };
     localStorage.setItem('firemap_inspector', JSON.stringify({
-      id: inspector.id,
-      name: inspector.name,
+      id: currentInspector.id,
+      name: currentInspector.name,
+      roles: roles,
       loginTime: Date.now()
     }));
     showMainContent();
@@ -499,21 +630,53 @@ function logout() {
   document.getElementById('login-error').innerText = '';
 }
 
-// 显示主内容
+// 显示主内容（按角色显示巡检/维修界面）
 function showMainContent() {
   document.getElementById('login-overlay').style.display = 'none';
   document.getElementById('main-content').style.display = 'block';
-  // 自动填充巡检人姓名
-  if (currentInspector) {
-    const personInput = document.getElementById('check-person');
-    if (personInput) {
-      personInput.value = currentInspector.name;
-      personInput.readOnly = true;
-      personInput.style.background = '#f5f5f5';
-    }
+  if (!currentInspector) return;
+  
+  // 根据角色控制界面显示：巡检员→巡检界面、维修员→维修界面、验收员→两者都显示
+  const roles = getRoleArray(currentInspector.roles);
+  const canInspect = roles.indexOf('inspector') >= 0 || roles.indexOf('acceptor') >= 0;
+  const canMaintain = roles.indexOf('repairer') >= 0 || roles.indexOf('acceptor') >= 0;
+  const inspectSec = document.getElementById('inspect-section');
+  const maintainSec = document.getElementById('maintain-section');
+  if (inspectSec) inspectSec.style.display = canInspect ? '' : 'none';
+  if (maintainSec) maintainSec.style.display = canMaintain ? '' : 'none';
+  
+  // 无任何岗位权限提示
+  const noPerm = document.getElementById('no-permission');
+  if (noPerm) {
+    noPerm.style.display = (!canInspect && !canMaintain) ? 'block' : 'none';
   }
-  // 加载可用表单
+  // 标题显示当前身份岗位
+  const roleNames = roles.map(r => r === 'inspector' ? '巡检员' : r === 'repairer' ? '维修员' : r === 'acceptor' ? '验收员' : r).join('、');
+  const bar = document.getElementById('user-info-bar');
+  if (bar) {
+    bar.style.display = 'flex';
+    bar.innerHTML = '<span>👤 ' + (currentInspector.name || '') + ' <span style="color:#6b7280">(' + (roleNames || '未分配岗位') + ')</span></span>' +
+      '<span class="logout" onclick="logoutScan()">退出</span>';
+  }
+  
+  // 自动填充巡检人姓名
+  const personInput = document.getElementById('check-person');
+  if (personInput) {
+    personInput.value = currentInspector.name;
+    personInput.readOnly = true;
+    personInput.style.background = '#f5f5f5';
+  }
+  // 自动填充维修人姓名
+  const maintainPerson = document.getElementById('maintain-person');
+  if (maintainPerson) {
+    maintainPerson.value = currentInspector.name;
+    maintainPerson.readOnly = true;
+    maintainPerson.style.background = '#f5f5f5';
+  }
+  
+  // 加载可用表单（巡检表单 + 维修表单）
   loadDeviceForms();
+  loadMaintainForms();
 }
 
 // 从云端获取设备信息（带自动重试）
@@ -587,10 +750,35 @@ let currentPhoto = null;
 let _deviceCurrentForm = null; // 当前选中的表单
 let _deviceFormData = {}; // 表单填写数据
 let _devicePresetFormId = null; // 设备预设的巡检表单ID
+// 维修相关
+let _maintainCurrentForm = null;
+let _maintainFormData = {};
+let currentMaintainPhoto = null;
 
 // 从云端加载可用表单
 async function loadDeviceForms() {
   try {
+    // ===== 本地模式（测试环境）：从主系统本地表单读取 =====
+    if (IS_TEST_ENV) {
+      const forms = await getLocalForms();
+      if (!forms.length) {
+        _showFormDebug('⚠️ 本地暂无表单（请先在主系统创建表单）');
+        return;
+      }
+      if (!_devicePresetFormId) {
+        document.getElementById('custom-form-group').style.display = 'block';
+      }
+      const select = document.getElementById('check-form-select');
+      forms.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+      forms.forEach(f => {
+        const option = document.createElement('option');
+        option.value = f.id;
+        option.textContent = f.name || '未命名表单';
+        select.appendChild(option);
+      });
+      _showFormDebug('✅ 已加载 ' + forms.length + ' 个本地表单');
+      return;
+    }
     // 注意：腾讯云TCB客户端不支持.order()链式调用，改用JS排序
     let { data, error } = await supabaseClient
       .from('custom_forms')
@@ -650,6 +838,28 @@ async function autoLoadPresetForm() {
   }
   try {
     console.log('正在加载预设表单, ID=', _devicePresetFormId);
+    // ===== 本地模式（测试环境）=====
+    if (IS_TEST_ENV) {
+      const data = await getLocalForm(_devicePresetFormId);
+      if (!data) {
+        _showFormDebug('⚠️ 预设表单加载失败：未找到该表单ID');
+        document.getElementById('custom-form-group').style.display = 'block';
+        return;
+      }
+      const group = document.getElementById('custom-form-group');
+      group.style.display = 'block';
+      const sel = document.getElementById('check-form-select');
+      if (sel) sel.style.display = 'none';
+      const area = document.getElementById('check-form-area');
+      area.style.display = 'block';
+      _deviceCurrentForm = data;
+      renderDeviceForm(data);
+      _showFormDebug('✅ 已自动加载预设表单：' + (data.name || '未命名'));
+      const oldTip = area.querySelector('.preset-form-tip');
+      if (oldTip) oldTip.remove();
+      area.insertAdjacentHTML('afterbegin', '<div class="preset-form-tip" style="font-size:12px;color:#0d9488;background:#f0fdfa;padding:8px 12px;border-radius:6px;margin-bottom:10px;border:1px solid #99f6e4">📋 此设备预设了巡检表单，请填写以下检查项</div>');
+      return;
+    }
     const { data, error } = await supabaseClient
       .from('custom_forms')
       .select('*')
@@ -694,6 +904,18 @@ async function onDeviceFormChange(formId) {
     return;
   }
   try {
+    // ===== 本地模式（测试环境）=====
+    if (IS_TEST_ENV) {
+      const data = await getLocalForm(formId);
+      if (!data) {
+        area.innerHTML = '<div style="color:#ef4444;font-size:13px">表单加载失败</div>';
+        area.style.display = 'block';
+        return;
+      }
+      _deviceCurrentForm = data;
+      renderDeviceForm(data);
+      return;
+    }
     const { data, error } = await supabaseClient
       .from('custom_forms')
       .select('*')
@@ -712,9 +934,10 @@ async function onDeviceFormChange(formId) {
   }
 }
 
-// 渲染表单字段（简化版，支持常用类型）
-function renderDeviceForm(form) {
-  const area = document.getElementById('check-form-area');
+// 渲染表单字段（简化版，支持常用类型；prefix: df_=巡检表单 / mf_=维修表单）
+function renderDeviceForm(form, areaEl, idPrefix) {
+  const area = areaEl || document.getElementById('check-form-area');
+  const prefix = idPrefix || 'df_';
   area.style.display = 'block';
   
   let html = '<div style="font-size:13px;font-weight:600;color:#333;margin-bottom:10px">' + (form.name || '表单') + '</div>';
@@ -725,7 +948,7 @@ function renderDeviceForm(form) {
       html += '<div style="font-size:12px;font-weight:600;color:#666;margin:10px 0 6px;padding-bottom:4px;border-bottom:1px solid #e5e7eb">' + g.name + '</div>';
     }
     (g.fields || []).forEach(f => {
-      const fieldId = 'df_' + f.id;
+      const fieldId = prefix + f.id;
       const required = f.required ? '<span style="color:#ef4444">*</span>' : '';
       html += '<div style="margin-bottom:10px;max-width:100%">';
       html += '<label style="display:block;font-size:12px;color:#555;margin-bottom:4px">' + (f.label || '字段') + ' ' + required + '</label>';
@@ -737,10 +960,10 @@ function renderDeviceForm(form) {
         case 'idcard':
         case 'email':
         case 'number':
-          html += '<input type="text" id="' + fieldId + '" placeholder="' + (f.placeholder || '') + '" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box" onchange="_deviceFormData[\'' + f.id + '\']=this.value">';
+          html += '<input type="text" id="' + fieldId + '" placeholder="' + (f.placeholder || '') + '" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box" onchange="onFormFieldChange(\'' + prefix + '\',\'' + f.id + '\',this.value)">';
           break;
         case 'textarea':
-          html += '<textarea id="' + fieldId + '" rows="2" placeholder="' + (f.placeholder || '') + '" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box;resize:vertical" onchange="_deviceFormData[\'' + f.id + '\']=this.value"></textarea>';
+          html += '<textarea id="' + fieldId + '" rows="2" placeholder="' + (f.placeholder || '') + '" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box;resize:vertical" onchange="onFormFieldChange(\'' + prefix + '\',\'' + f.id + '\',this.value)"></textarea>';
           break;
         case 'select':
         case 'radio':
@@ -750,7 +973,7 @@ function renderDeviceForm(form) {
         case 'wind':
         case 'gender':
           const opts = f.options || [];
-          html += '<select id="' + fieldId + '" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box" onchange="_deviceFormData[\'' + f.id + '\']=this.value">';
+          html += '<select id="' + fieldId + '" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box" onchange="onFormFieldChange(\'' + prefix + '\',\'' + f.id + '\',this.value)">';
           html += '<option value="">请选择</option>';
           opts.forEach(o => { html += '<option value="' + o + '">' + o + '</option>'; });
           html += '</select>';
@@ -758,19 +981,19 @@ function renderDeviceForm(form) {
         case 'checkbox':
           const cOpts = f.options || [];
           cOpts.forEach(o => {
-            html += '<label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:4px;cursor:pointer"><input type="checkbox" value="' + o + '" onchange="var arr=_deviceFormData[\'' + f.id + '\']||[];if(this.checked){arr.push(this.value)}else{arr=arr.filter(x=>x!==this.value)}_deviceFormData[\'' + f.id + '\']=arr"> ' + o + '</label>';
+            html += '<label style="display:flex;align-items:center;gap:6px;font-size:13px;margin-bottom:4px;cursor:pointer"><input type="checkbox" value="' + o + '" onchange="onFormCheckChange(\'' + prefix + '\',\'' + f.id + '\',this)"> ' + o + '</label>';
           });
           break;
         case 'date':
         case 'datetime':
-          html += '<input type="' + (f.type === 'datetime' ? 'datetime-local' : 'date') + '" id="' + fieldId + '" style="width:100%;max-width:100%;min-width:0;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box;-webkit-appearance:none;appearance:none" onchange="_deviceFormData[\'' + f.id + '\']=this.value">';
+          html += '<input type="' + (f.type === 'datetime' ? 'datetime-local' : 'date') + '" id="' + fieldId + '" style="width:100%;max-width:100%;min-width:0;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box;-webkit-appearance:none;appearance:none" onchange="onFormFieldChange(\'' + prefix + '\',\'' + f.id + '\',this.value)">';
           break;
         case 'time':
-          html += '<input type="time" id="' + fieldId + '" style="width:100%;max-width:100%;min-width:0;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box;-webkit-appearance:none;appearance:none" onchange="_deviceFormData[\'' + f.id + '\']=this.value">';
+          html += '<input type="time" id="' + fieldId + '" style="width:100%;max-width:100%;min-width:0;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box;-webkit-appearance:none;appearance:none" onchange="onFormFieldChange(\'' + prefix + '\',\'' + f.id + '\',this.value)">';
           break;
         case 'image':
         case 'photo':
-          html += '<input type="file" id="' + fieldId + '" accept="image/*" capture="environment" style="font-size:12px" onchange="readDeviceFormImage(this,\'' + f.id + '\')">';
+          html += '<input type="file" id="' + fieldId + '" accept="image/*" capture="environment" style="font-size:12px" onchange="onFormImageChange(\'' + prefix + '\',\'' + f.id + '\',this)">';
           break;
         case 'signature':
           html += '<div style="padding:8px;background:#fff;border:1px dashed #ddd;border-radius:6px;text-align:center;font-size:12px;color:#999">签名功能暂不支持移动端</div>';
@@ -778,10 +1001,10 @@ function renderDeviceForm(form) {
         case 'location':
         case 'area':
         case 'areaTree':
-          html += '<input type="text" id="' + fieldId + '" placeholder="请输入位置/区域" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box" onchange="_deviceFormData[\'' + f.id + '\']=this.value">';
+          html += '<input type="text" id="' + fieldId + '" placeholder="请输入位置/区域" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box" onchange="onFormFieldChange(\'' + prefix + '\',\'' + f.id + '\',this.value)">';
           break;
         default:
-          html += '<input type="text" id="' + fieldId + '" placeholder="' + (f.placeholder || '') + '" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box" onchange="_deviceFormData[\'' + f.id + '\']=this.value">';
+          html += '<input type="text" id="' + fieldId + '" placeholder="' + (f.placeholder || '') + '" style="width:100%;padding:8px 10px;border:1px solid #ddd;border-radius:6px;font-size:13px;box-sizing:border-box" onchange="onFormFieldChange(\'' + prefix + '\',\'' + f.id + '\',this.value)">';
       }
       if (f.textDesc) {
         html += '<div style="font-size:11px;color:#999;margin-top:2px">' + f.textDesc + '</div>';
@@ -819,6 +1042,31 @@ function checkRequiredFormFields() {
     }
   }
   return null;
+}
+
+// 通用表单字段变更（prefix: df_=巡检 / mf_=维修）
+function onFormFieldChange(prefix, fieldId, value) {
+  if (prefix === 'mf_') { _maintainFormData[fieldId] = value; }
+  else { _deviceFormData[fieldId] = value; }
+}
+// 通用表单复选框变更
+function onFormCheckChange(prefix, fieldId, el) {
+  const dObj = (prefix === 'mf_') ? _maintainFormData : _deviceFormData;
+  let arr = dObj[fieldId] || [];
+  if (el.checked) { arr.push(el.value); }
+  else { arr = arr.filter(x => x !== el.value); }
+  dObj[fieldId] = arr;
+}
+// 通用表单图片读取
+function onFormImageChange(prefix, fieldId, input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    if (prefix === 'mf_') { _maintainFormData[fieldId] = e.target.result; }
+    else { _deviceFormData[fieldId] = e.target.result; }
+  };
+  reader.readAsDataURL(file);
 }
 
 // 读取表单图片
@@ -879,6 +1127,216 @@ async function saveDeviceFormData(formId, formName, data, inspectLogId) {
   }
 }
 
+// ===== 维修功能（维修员/验收员使用）=====
+// 加载维修可用表单
+async function loadMaintainForms() {
+  try {
+    const select = document.getElementById('maintain-form-select');
+    if (!select) return;
+    let forms;
+    if (IS_TEST_ENV) {
+      forms = await getLocalForms();
+    } else {
+      let { data, error } = await supabaseClient.from('custom_forms').select('*').eq('deleted', false);
+      if (error && String(error.code || '').indexOf('PGRST204') >= 0) {
+        const r2 = await supabaseClient.from('custom_forms').select('*');
+        data = r2.data; error = r2.error;
+      }
+      if (error) { console.log('维修表单加载失败:', error.message); return; }
+      forms = data || [];
+    }
+    if (!forms.length) return;
+    document.getElementById('maintain-form-group').style.display = 'block';
+    forms.sort((a, b) => new Date(b.updatedAt || b.createdAt) - new Date(a.updatedAt || a.createdAt));
+    forms.forEach(f => {
+      const option = document.createElement('option');
+      option.value = f.id;
+      option.textContent = f.name || '未命名表单';
+      select.appendChild(option);
+    });
+  } catch (e) {
+    console.log('加载维修表单失败:', e);
+  }
+}
+
+// 维修表单选择变化
+async function onMaintainFormChange(formId) {
+  const area = document.getElementById('maintain-form-area');
+  _maintainCurrentForm = null;
+  _maintainFormData = {};
+  if (!formId) {
+    area.style.display = 'none';
+    area.innerHTML = '';
+    return;
+  }
+  try {
+    let data;
+    if (IS_TEST_ENV) {
+      data = await getLocalForm(formId);
+    } else {
+      const { data: d, error } = await supabaseClient.from('custom_forms').select('*').eq('id', formId).single();
+      data = error ? null : d;
+    }
+    if (!data) {
+      area.innerHTML = '<div style="color:#ef4444;font-size:13px">表单加载失败</div>';
+      area.style.display = 'block';
+      return;
+    }
+    _maintainCurrentForm = data;
+    renderMaintainForm(data);
+  } catch (e) {
+    area.innerHTML = '<div style="color:#ef4444;font-size:13px">表单加载异常</div>';
+    area.style.display = 'block';
+  }
+}
+
+// 渲染维修表单（复用通用渲染，字段前缀 mf_ 避免与巡检表单冲突）
+function renderMaintainForm(form) {
+  renderDeviceForm(form, document.getElementById('maintain-form-area'), 'mf_');
+}
+
+// 检查维修表单必填项
+function checkMaintainRequiredFields() {
+  if (!_maintainCurrentForm) return null;
+  const groups = _maintainCurrentForm.groups || [];
+  for (let gi = 0; gi < groups.length; gi++) {
+    const g = groups[gi];
+    for (const f of (g.fields || [])) {
+      if (!f.required) continue;
+      const el = document.getElementById('mf_' + f.id);
+      let val = '';
+      if (el) {
+        if (el.type === 'checkbox') {
+          const arr = _maintainFormData[f.id] || [];
+          if (arr.length === 0) return f.label || f.id;
+          continue;
+        }
+        val = el.value;
+      } else if (_maintainFormData[f.id] !== undefined) {
+        val = _maintainFormData[f.id];
+      }
+      if (val === null || val === undefined || String(val).trim() === '') {
+        return f.label || f.id;
+      }
+    }
+  }
+  return null;
+}
+
+// 收集维修表单数据
+function collectMaintainFormData() {
+  if (!_maintainCurrentForm) return null;
+  const data = {};
+  const groups = _maintainCurrentForm.groups || [];
+  groups.forEach(g => {
+    (g.fields || []).forEach(f => {
+      const el = document.getElementById('mf_' + f.id);
+      if (el) {
+        if (el.type === 'checkbox') { /* checkbox handled via onchange */ }
+        else { data[f.label || f.id] = el.value; }
+      } else if (_maintainFormData[f.id] !== undefined) {
+        data[f.label || f.id] = _maintainFormData[f.id];
+      }
+    });
+  });
+  return data;
+}
+
+// 维修照片预览
+function previewMaintainPhoto(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    currentMaintainPhoto = e.target.result;
+    const preview = document.getElementById('maintain-photo-preview');
+    preview.src = currentMaintainPhoto;
+    preview.style.display = 'block';
+  };
+  reader.readAsDataURL(file);
+}
+
+// 提交维修记录
+async function submitMaintain() {
+  if (!currentInspector) {
+    alert('请先登录');
+    return;
+  }
+  if (_maintainCurrentForm) {
+    const requiredEmpty = checkMaintainRequiredFields();
+    if (requiredEmpty) {
+      alert('请先填写表单必填项：' + requiredEmpty);
+      return;
+    }
+  }
+  const person = currentInspector.name;
+  const result = document.getElementById('maintain-result').value;
+  const remark = document.getElementById('maintain-remark').value.trim();
+  const now = new Date();
+  const logDate = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0") + "-" + String(now.getDate()).padStart(2, "0");
+  const logTime = String(now.getHours()).padStart(2, "0") + ":" + String(now.getMinutes()).padStart(2, "0");
+  const deviceId = getQueryParam("id") || '';
+  
+  const log = {
+    id: 'mt_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+    deviceId: deviceId,
+    logDate: logDate,
+    logTime: logTime,
+    person: person,
+    result: result,
+    remark: remark,
+    photo: currentMaintainPhoto,
+    source: 'qrcode'
+  };
+  
+  // 写本地维保记录（主系统维保记录读取 SL store）
+  try {
+    await ensureDBReady();
+    await dbPut(SL, log);
+  } catch (e) { console.error('本地维保记录写入失败:', e); }
+  
+  // 待同步队列（供主系统导入）
+  try {
+    const pending = JSON.parse(localStorage.getItem("firemap_maintain_pending") || "[]");
+    pending.push(Object.assign({}, log, { synced: false }));
+    localStorage.setItem("firemap_maintain_pending", JSON.stringify(pending));
+  } catch (e) {}
+  
+  // 保存维修表单数据
+  if (_maintainCurrentForm) {
+    const formData = collectMaintainFormData();
+    if (formData) {
+      try {
+        await dbPut(S_FORM_DATA, {
+          id: 'formdata_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+          form_id: _maintainCurrentForm.id,
+          form_name: _maintainCurrentForm.name,
+          data: formData,
+          related_type: 'maintainLog',
+          related_id: log.id,
+          created_by: person,
+          created_at: new Date().toISOString()
+        });
+      } catch (e) { console.error('维修表单数据保存失败:', e); }
+    }
+  }
+  
+  // 清空已填内容
+  document.getElementById('maintain-remark').value = '';
+  document.getElementById('maintain-photo').value = '';
+  document.getElementById('maintain-photo-preview').style.display = 'none';
+  currentMaintainPhoto = null;
+  document.getElementById('maintain-form-select').value = '';
+  document.getElementById('maintain-form-area').style.display = 'none';
+  document.getElementById('maintain-form-area').innerHTML = '';
+  _maintainCurrentForm = null;
+  _maintainFormData = {};
+  
+  // 成功提示
+  document.getElementById('success-msg').innerText = '维修记录已提交：' + result;
+  document.getElementById('success-overlay').style.display = 'flex';
+}
+
 function getQueryParam(name) {
   return new URL(window.location.href).searchParams.get(name);
 }
@@ -927,6 +1385,20 @@ async function loadRecordsFromCloud() {
   try {
     const devId = getQueryParam("id") || "";
     if (!devId) return [];
+    // ===== 本地模式（测试环境）：读取本地记录 =====
+    if (IS_TEST_ENV) {
+      const list = [];
+      const local = JSON.parse(localStorage.getItem("firemap_inspect_records") || "{}");
+      (local[devId] || []).forEach(r => {
+        list.push({ inspector: r.person, result: r.result, remark: r.remark, photo: r.photo, inspect_date: (r.date || '').split(' ')[0], inspect_time: (r.date || '').split(' ')[1] || '' });
+      });
+      await ensureDBReady();
+      const logs = await dbGetAll(S_LOG);
+      logs.filter(l => l.deviceId === devId).forEach(l => {
+        list.push({ inspector: l.inspector, result: l.result, remark: l.remark, photo: l.photo, inspect_date: l.inspectDate, inspect_time: l.inspectTime });
+      });
+      return list;
+    }
     const { data, error } = await supabaseClient
       .from('inspect_logs')
       .select('*')
@@ -1016,30 +1488,81 @@ async function submitCheck() {
   
   saveRecord(record);
   
-  // 同时提交到云端
+  // 生成巡检记录ID（用于关联表单）
   const deviceId = getQueryParam("id");
   let inspectLogId = null;
-  if (deviceId) {
-    // 生成巡检记录ID（用于关联表单）
-    inspectLogId = 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-    await submitInspectToCloud({
-      id: inspectLogId,
-      deviceId: deviceId,
-      inspector: person,
-      inspectorId: inspectorId,
-      result: currentResult,
-      remark: remark,
-      photo: currentPhoto,
-      inspectDate: date.split(" ")[0],
-      inspectTime: date.split(" ")[1]
-    });
-  }
   
-  // 保存自定义表单数据
-  if (_deviceCurrentForm && inspectLogId) {
-    const formData = collectDeviceFormData();
-    if (formData) {
-      await saveDeviceFormData(_deviceCurrentForm.id, _deviceCurrentForm.name, formData, inspectLogId);
+  if (IS_TEST_ENV) {
+    // ===== 本地模式：写入主系统可见的巡检记录（IndexedDB S_LOG + 表单数据）=====
+    if (deviceId) {
+      try {
+        await ensureDBReady();
+        const dev = await getLocalDevice(deviceId);
+        const floors = await dbGetAll(SF);
+        const buildings = await dbGetAll(SB);
+        const floor = floors.find(f => f.id === (dev && dev.floorId));
+        const building = buildings.find(b => b.id === (floor && floor.buildingId));
+        inspectLogId = 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+        const log = {
+          id: inspectLogId,
+          deviceId: deviceId,
+          taskId: null,
+          inspectDate: date.split(" ")[0],
+          inspectTime: date.split(" ")[1],
+          result: currentResult,
+          inspector: person,
+          remark: remark,
+          photo: currentPhoto,
+          source: 'qrcode',
+          snapshot_deviceType: (dev && dev.deviceType) || '未知设备',
+          snapshot_deviceCode: (dev && dev.deviceCode) || '',
+          snapshot_buildingName: (building && building.name) || '',
+          snapshot_floorName: (floor && floor.floorName) || ''
+        };
+        await dbPut(S_LOG, log);
+        // 表单数据写本地
+        if (_deviceCurrentForm) {
+          const formData = collectDeviceFormData();
+          if (formData) {
+            await dbPut(S_FORM_DATA, {
+              id: 'formdata_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+              form_id: _deviceCurrentForm.id,
+              form_name: _deviceCurrentForm.name,
+              data: formData,
+              related_type: 'inspectLog',
+              related_id: inspectLogId,
+              created_by: person,
+              created_at: new Date().toISOString()
+            });
+          }
+        }
+      } catch (e) {
+        console.error('本地巡检记录写入失败:', e);
+      }
+    }
+  } else {
+    // ===== 云端模式：同时提交到云端 =====
+    if (deviceId) {
+      inspectLogId = 'log_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+      await submitInspectToCloud({
+        id: inspectLogId,
+        deviceId: deviceId,
+        inspector: person,
+        inspectorId: inspectorId,
+        result: currentResult,
+        remark: remark,
+        photo: currentPhoto,
+        inspectDate: date.split(" ")[0],
+        inspectTime: date.split(" ")[1]
+      });
+    }
+    
+    // 保存自定义表单数据
+    if (_deviceCurrentForm && inspectLogId) {
+      const formData = collectDeviceFormData();
+      if (formData) {
+        await saveDeviceFormData(_deviceCurrentForm.id, _deviceCurrentForm.name, formData, inspectLogId);
+      }
     }
   }
   
@@ -1078,6 +1601,12 @@ async function submitCheck() {
 
 function closeSuccess() {
   document.getElementById("success-overlay").style.display = "none";
+}
+
+// 退出登录
+function logoutScan() {
+  localStorage.removeItem('firemap_inspector');
+  location.reload();
 }
 
 function render(d) {
@@ -1153,21 +1682,32 @@ async function init() {
   const data = getQueryParam("data");
   
   if (deviceId) {
-    // 云端模式：从云端读取设备信息（带自动重试）
+    // 加载设备信息
     document.getElementById("info-table").innerHTML = '<tr><td colspan="2" style="text-align:center;color:#999;padding:30px">正在加载设备信息...</td></tr>';
-    const d = await getDeviceFromCloud(deviceId, 3);
+    let d;
+    if (IS_TEST_ENV) {
+      // 本地模式：从主系统本地 IndexedDB 读取设备
+      d = await getLocalDevice(deviceId);
+      if (!d) d = { _error: '本地未找到该设备（请先在主系统添加该设备）', _code: 'NOT_FOUND' };
+    } else {
+      // 云端模式：从云端读取设备信息（带自动重试）
+      d = await getDeviceFromCloud(deviceId, 3);
+    }
     if (d && !d._error) {
       render(d);
     } else {
       const errMsg = d && d._error ? d._error : '未知错误';
       const errCode = d && d._code ? d._code : '';
+      const tipHtml = IS_TEST_ENV
+        ? '请检查：1.主系统是否已添加该设备 2.扫码手机与主系统是否使用同一浏览器（本地数据按浏览器隔离）'
+        : '请检查：1.云端是否已创建 devices 表 2.主系统是否已点击「同步到云端」 3.表权限策略是否正确';
       document.getElementById("info-table").innerHTML = 
         '<tr><td colspan="2" style="text-align:center;color:#d97706;padding:20px;line-height:1.8">' +
         '<div style="font-weight:600;margin-bottom:8px">❌ 设备加载失败</div>' +
         '<div style="font-size:13px;color:#666">设备ID: ' + deviceId + '</div>' +
         '<div style="font-size:13px;color:#666;margin-top:4px">错误码: ' + (errCode || '无') + '</div>' +
         '<div style="font-size:13px;color:#d97706;margin-top:8px;word-break:break-all">' + errMsg + '</div>' +
-        '<div style="font-size:12px;color:#999;margin-top:12px">请检查：1.云端是否已创建 devices 表 2.主系统是否已点击「同步到云端」 3.表权限策略是否正确</div>' +
+        '<div style="font-size:12px;color:#999;margin-top:12px">' + tipHtml + '</div>' +
         '<button onclick="retryLoadDevice()" style="margin-top:12px;padding:8px 24px;background:#2563eb;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer">🔄 重新加载</button>' +
         '</td></tr>';
     }
